@@ -40,6 +40,7 @@ Base URL: `http://localhost:8080/api/v1/admin`
 - [Common Error Responses](#common-error-responses)
 - [Status Codes Summary](#status-codes-summary)
 - [Available User Roles](#available-user-roles)
+- [Available Resources](#available-resources)
 - [Available User Statuses](#available-user-statuses)
 
 ---
@@ -137,14 +138,14 @@ POST /api/v1/admin/branches
 
 #### Request Body
 
-| Field     | Type   | Required | Description                              |
-|----------|--------|----------|------------------------------------------|
-| `name`    | string | ✅       | Branch display name                      |
-| `code`    | string | ✅       | Unique branch code (e.g. `BRANCH02`)     |
-| `address` | string | ❌       | Physical address                         |
-| `phone`   | string | ❌       | Contact phone                            |
-| `email`   | string | ❌       | Contact email                            |
-| `logo_url`| string | ❌       | URL to branch logo                       |
+| Field      | Type   | Required | Description                          |
+|-----------|--------|----------|--------------------------------------|
+| `name`     | string | ✅       | Branch display name                  |
+| `code`     | string | ✅       | Unique branch code (e.g. `BRANCH02`) |
+| `address`  | string | ❌       | Physical address                     |
+| `phone`    | string | ❌       | Contact phone                        |
+| `email`    | string | ❌       | Contact email                        |
+| `logo_url` | string | ❌       | URL to branch logo                   |
 
 #### cURL
 
@@ -200,15 +201,15 @@ PUT /api/v1/admin/branches/{id}
 
 #### Request Body
 
-| Field      | Type   | Required | Description                          |
-|-----------|--------|----------|--------------------------------------|
-| `name`     | string | ❌       | Updated name                         |
-| `code`     | string | ❌       | Updated code                         |
-| `address`  | string | ❌       | Updated address                      |
-| `phone`    | string | ❌       | Updated phone                        |
-| `email`    | string | ❌       | Updated email                        |
-| `logo_url` | string | ❌       | Updated logo URL                     |
-| `is_active`| bool   | ❌       | Enable/disable the branch            |
+| Field       | Type   | Required | Description               |
+|------------|--------|----------|---------------------------|
+| `name`      | string | ❌       | Updated name              |
+| `code`      | string | ❌       | Updated code              |
+| `address`   | string | ❌       | Updated address           |
+| `phone`     | string | ❌       | Updated phone             |
+| `email`     | string | ❌       | Updated email             |
+| `logo_url`  | string | ❌       | Updated logo URL          |
+| `is_active` | bool   | ❌       | Enable/disable the branch |
 
 #### cURL
 
@@ -367,15 +368,15 @@ POST /api/v1/admin/users
 
 #### Request Body
 
-| Field       | Type   | Required | Description                                                                          |
-|------------|--------|----------|--------------------------------------------------------------------------------------|
-| `branch_id` | string | ✅       | UUID of the branch to assign the user to                                             |
-| `first_name`| string | ✅       | User's first name                                                                    |
-| `last_name` | string | ✅       | User's last name                                                                     |
-| `email`     | string | ✅       | Unique email address                                                                 |
-| `password`  | string | ✅       | Password (min 6 chars, hashed with bcrypt)                                           |
-| `role`      | string | ✅       | One of: `super_admin`, `admin`, `doctor`, `receptionist`, `billing_staff`, `pharmacist` |
-| `phone`     | string | ❌       | Contact phone number                                                                 |
+| Field        | Type   | Required | Description                                                        |
+|-------------|--------|----------|--------------------------------------------------------------------|
+| `branch_id`  | string | ✅       | UUID of the branch to assign the user to                           |
+| `first_name` | string | ✅       | User's first name                                                  |
+| `last_name`  | string | ✅       | User's last name                                                   |
+| `email`      | string | ✅       | Unique email address                                               |
+| `password`   | string | ✅       | Password (min 6 chars, stored as bcrypt hash)                      |
+| `role`       | string | ✅       | One of: `super_admin`, `admin`, `manager`, `employee`              |
+| `phone`      | string | ❌       | Contact phone number                                               |
 
 #### cURL
 
@@ -390,7 +391,7 @@ curl -X POST http://localhost:8080/api/v1/admin/users \
     "last_name": "Doe",
     "email": "john.doe@oleron.com",
     "password": "SecurePass123",
-    "role": "doctor",
+    "role": "employee",
     "phone": "+1122334455"
   }'
 ```
@@ -407,7 +408,7 @@ curl -X POST http://localhost:8080/api/v1/admin/users \
     "last_name": "Doe",
     "email": "john.doe@oleron.com",
     "phone": "+1122334455",
-    "role": "doctor",
+    "role": "employee",
     "status": "active",
     "created_at": "2026-04-01T11:00:00Z",
     "updated_at": "2026-04-01T11:00:00Z"
@@ -434,15 +435,15 @@ PUT /api/v1/admin/users/{id}
 
 #### Request Body
 
-| Field       | Type   | Required | Description                         |
-|------------|--------|----------|-------------------------------------|
-| `branch_id` | string | ❌       | Reassign to a different branch      |
-| `first_name`| string | ❌       | Updated first name                  |
-| `last_name` | string | ❌       | Updated last name                   |
-| `email`     | string | ❌       | Updated email                       |
-| `phone`     | string | ❌       | Updated phone                       |
-| `role`      | string | ❌       | Updated role                        |
-| `status`    | string | ❌       | `active`, `inactive`, `suspended`, `pending` |
+| Field        | Type   | Required | Description                                           |
+|-------------|--------|----------|-------------------------------------------------------|
+| `branch_id`  | string | ❌       | Reassign to a different branch                        |
+| `first_name` | string | ❌       | Updated first name                                    |
+| `last_name`  | string | ❌       | Updated last name                                     |
+| `email`      | string | ❌       | Updated email                                         |
+| `phone`      | string | ❌       | Updated phone                                         |
+| `role`       | string | ❌       | One of: `super_admin`, `admin`, `manager`, `employee` |
+| `status`     | string | ❌       | One of: `active`, `inactive`, `suspended`, `pending`  |
 
 #### cURL
 
@@ -452,7 +453,7 @@ curl -X PUT http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-446
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
-    "role": "receptionist",
+    "role": "manager",
     "status": "active"
   }'
 ```
@@ -469,7 +470,7 @@ curl -X PUT http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-446
     "last_name": "Doe",
     "email": "john.doe@oleron.com",
     "phone": "+1122334455",
-    "role": "receptionist",
+    "role": "manager",
     "status": "active",
     "created_at": "2026-04-01T11:00:00Z",
     "updated_at": "2026-04-01T11:15:00Z"
@@ -487,9 +488,9 @@ PATCH /api/v1/admin/users/{id}/password
 
 #### Request Body
 
-| Field      | Type   | Required | Description                  |
-|-----------|--------|----------|------------------------------|
-| `password` | string | ✅       | New password (min 6 chars)   |
+| Field      | Type   | Required | Description                |
+|-----------|--------|----------|----------------------------|
+| `password` | string | ✅       | New password (min 6 chars) |
 
 #### cURL
 
@@ -594,9 +595,9 @@ curl -X GET http://localhost:8080/api/v1/admin/menus \
     {
       "id": "aa0e8400-e29b-41d4-a716-446655440002",
       "parent_id": null,
-      "label": "Patients",
+      "label": "Employees",
       "path": null,
-      "resource": "patient",
+      "resource": "employee",
       "sort_order": 2,
       "is_active": true,
       "created_at": "2026-04-01T10:00:00Z",
@@ -605,9 +606,9 @@ curl -X GET http://localhost:8080/api/v1/admin/menus \
     {
       "id": "bb0e8400-e29b-41d4-a716-446655440001",
       "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-      "label": "Patient Records",
-      "path": "/patients",
-      "resource": "patient",
+      "label": "Employee List",
+      "path": "/employees",
+      "resource": "employee",
       "sort_order": 1,
       "is_active": true,
       "created_at": "2026-04-01T10:00:00Z",
@@ -654,17 +655,17 @@ curl -X GET http://localhost:8080/api/v1/admin/menus/tree \
     {
       "id": "aa0e8400-e29b-41d4-a716-446655440002",
       "parent_id": null,
-      "label": "Patients",
-      "resource": "patient",
+      "label": "Employees",
+      "resource": "employee",
       "sort_order": 2,
       "is_active": true,
       "children": [
         {
           "id": "bb0e8400-e29b-41d4-a716-446655440001",
           "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-          "label": "Patient Records",
-          "path": "/patients",
-          "resource": "patient",
+          "label": "Employee List",
+          "path": "/employees",
+          "resource": "employee",
           "sort_order": 1,
           "is_active": true,
           "created_at": "2026-04-01T10:00:00Z",
@@ -673,9 +674,9 @@ curl -X GET http://localhost:8080/api/v1/admin/menus/tree \
         {
           "id": "bb0e8400-e29b-41d4-a716-446655440002",
           "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-          "label": "Medical History",
-          "path": "/patients/history",
-          "resource": "medical_history",
+          "label": "Work Schedule",
+          "path": "/employees/schedule",
+          "resource": "attendance",
           "sort_order": 2,
           "is_active": true,
           "created_at": "2026-04-01T10:00:00Z",
@@ -713,8 +714,8 @@ curl -X GET http://localhost:8080/api/v1/admin/menus/aa0e8400-e29b-41d4-a716-446
   "data": {
     "id": "aa0e8400-e29b-41d4-a716-446655440002",
     "parent_id": null,
-    "label": "Patients",
-    "resource": "patient",
+    "label": "Employees",
+    "resource": "employee",
     "sort_order": 2,
     "is_active": true,
     "created_at": "2026-04-01T10:00:00Z",
@@ -742,13 +743,13 @@ POST /api/v1/admin/menus
 
 #### Request Body
 
-| Field       | Type    | Required | Description                                          |
-|------------|---------|----------|------------------------------------------------------|
-| `label`     | string  | ✅       | Display label (e.g. `"Patients"`)                    |
-| `parent_id` | string  | ❌       | UUID of parent menu (`null` for top-level)           |
-| `path`      | string  | ❌       | Route path (`null` for parent menus with children)   |
-| `resource`  | string  | ❌       | Resource name matching `role_permissions` (e.g. `"patient"`) |
-| `sort_order`| int     | ❌       | Display order (default: `0`)                         |
+| Field        | Type    | Required | Description                                                                              |
+|-------------|---------|----------|------------------------------------------------------------------------------------------|
+| `label`      | string  | ✅       | Display label (e.g. `"Attendance"`)                                                      |
+| `parent_id`  | string  | ❌       | UUID of parent menu (`null` for top-level)                                               |
+| `path`       | string  | ❌       | Route path (`null` for parent menus with children)                                       |
+| `resource`   | string  | ❌       | One of: `employee`, `attendance`, `payroll`, `report`, `settings` |
+| `sort_order` | int     | ❌       | Display order (default: `0`)                                                             |
 
 #### cURL — Create a top-level menu
 
@@ -758,10 +759,10 @@ curl -X POST http://localhost:8080/api/v1/admin/menus \
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
-    "label": "Pharmacy",
-    "path": "/pharmacy",
-    "resource": "pharmacy",
-    "sort_order": 8
+    "label": "Payroll",
+    "path": "/payroll",
+    "resource": "payroll",
+    "sort_order": 4
   }'
 ```
 
@@ -774,10 +775,10 @@ curl -X POST http://localhost:8080/api/v1/admin/menus \
   -H "Authorization: Bearer <access_token>" \
   -d '{
     "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-    "label": "Lab Results",
-    "path": "/patients/labs",
-    "resource": "lab_result",
-    "sort_order": 3
+    "label": "Work Schedule",
+    "path": "/employees/schedule",
+    "resource": "attendance",
+    "sort_order": 2
   }'
 ```
 
@@ -789,10 +790,10 @@ curl -X POST http://localhost:8080/api/v1/admin/menus \
   "data": {
     "id": "cc0e8400-e29b-41d4-a716-446655440001",
     "parent_id": null,
-    "label": "Pharmacy",
-    "path": "/pharmacy",
-    "resource": "pharmacy",
-    "sort_order": 8,
+    "label": "Payroll",
+    "path": "/payroll",
+    "resource": "payroll",
+    "sort_order": 4,
     "is_active": true,
     "created_at": "2026-04-01T12:00:00Z",
     "updated_at": "2026-04-01T12:00:00Z"
@@ -819,14 +820,14 @@ PUT /api/v1/admin/menus/{id}
 
 #### Request Body
 
-| Field       | Type    | Required | Description                            |
-|------------|---------|----------|----------------------------------------|
-| `parent_id` | string  | ❌       | Move to different parent (or `null` for top-level) |
-| `label`     | string  | ❌       | Updated label                          |
-| `path`      | string  | ❌       | Updated route path                     |
-| `resource`  | string  | ❌       | Updated resource name                  |
-| `sort_order`| int     | ❌       | Updated display order                  |
-| `is_active` | bool    | ❌       | Enable/disable the menu                |
+| Field        | Type    | Required | Description                                        |
+|-------------|---------|----------|----------------------------------------------------|
+| `parent_id`  | string  | ❌       | Move to different parent (`null` for top-level)    |
+| `label`      | string  | ❌       | Updated label                                      |
+| `path`       | string  | ❌       | Updated route path                                 |
+| `resource`   | string  | ❌       | Updated resource name                              |
+| `sort_order` | int     | ❌       | Updated display order                              |
+| `is_active`  | bool    | ❌       | Enable/disable the menu                            |
 
 #### cURL
 
@@ -836,9 +837,9 @@ curl -X PUT http://localhost:8080/api/v1/admin/menus/cc0e8400-e29b-41d4-a716-446
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
-    "label": "Pharmacy Management",
-    "sort_order": 5,
-    "is_active": false
+    "label": "Payroll & Salary",
+    "sort_order": 3,
+    "is_active": true
   }'
 ```
 
@@ -850,11 +851,11 @@ curl -X PUT http://localhost:8080/api/v1/admin/menus/cc0e8400-e29b-41d4-a716-446
   "data": {
     "id": "cc0e8400-e29b-41d4-a716-446655440001",
     "parent_id": null,
-    "label": "Pharmacy Management",
-    "path": "/pharmacy",
-    "resource": "pharmacy",
-    "sort_order": 5,
-    "is_active": false,
+    "label": "Payroll & Salary",
+    "path": "/payroll",
+    "resource": "payroll",
+    "sort_order": 3,
+    "is_active": true,
     "created_at": "2026-04-01T12:00:00Z",
     "updated_at": "2026-04-01T12:15:00Z"
   }
@@ -895,11 +896,9 @@ curl -X DELETE http://localhost:8080/api/v1/admin/menus/cc0e8400-e29b-41d4-a716-
 ## Role Permissions (super_admin only)
 
 > `role_permissions` controls what each role can do for a given `resource`.
-> This is used by menu filtering and can also be reused for backend authorization rules.
+> Used by menu filtering and backend authorization rules.
 
 ### 1. List All Role Permissions
-
-Returns all role-permission mappings.
 
 ```
 GET /api/v1/admin/role-permissions
@@ -921,8 +920,8 @@ curl -X GET http://localhost:8080/api/v1/admin/role-permissions \
   "data": [
     {
       "id": "de0e8400-e29b-41d4-a716-446655440001",
-      "role": "receptionist",
-      "resource": "patient",
+      "role": "manager",
+      "resource": "attendance",
       "can_view": true,
       "can_create": true,
       "can_edit": true,
@@ -931,11 +930,11 @@ curl -X GET http://localhost:8080/api/v1/admin/role-permissions \
     },
     {
       "id": "de0e8400-e29b-41d4-a716-446655440002",
-      "role": "billing_staff",
-      "resource": "billing",
+      "role": "employee",
+      "resource": "attendance",
       "can_view": true,
-      "can_create": true,
-      "can_edit": true,
+      "can_create": false,
+      "can_edit": false,
       "can_delete": false,
       "created_at": "2026-04-01T10:00:00Z"
     }
@@ -966,8 +965,8 @@ curl -X GET http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b-41
   "success": true,
   "data": {
     "id": "de0e8400-e29b-41d4-a716-446655440001",
-    "role": "receptionist",
-    "resource": "patient",
+    "role": "manager",
+    "resource": "attendance",
     "can_view": true,
     "can_create": true,
     "can_edit": true,
@@ -996,14 +995,14 @@ POST /api/v1/admin/role-permissions
 
 #### Request Body
 
-| Field         | Type    | Required | Description |
-|--------------|---------|----------|-------------|
-| `role`        | string  | ✅       | One of the supported user roles |
-| `resource`    | string  | ✅       | Permission resource key such as `"patient"` or `"billing"` |
-| `can_view`    | bool    | ❌       | View permission |
-| `can_create`  | bool    | ❌       | Create permission |
-| `can_edit`    | bool    | ❌       | Edit permission |
-| `can_delete`  | bool    | ❌       | Delete permission |
+| Field        | Type   | Required | Description                                                             |
+|-------------|--------|----------|-------------------------------------------------------------------------|
+| `role`       | string | ✅       | One of: `super_admin`, `admin`, `manager`, `employee`                   |
+| `resource`   | string | ✅       | One of: `employee`, `attendance`, `payroll`, `report`, `settings`       |
+| `can_view`   | bool   | ❌       | View permission (default: `false`)                                      |
+| `can_create` | bool   | ❌       | Create permission (default: `false`)                                    |
+| `can_edit`   | bool   | ❌       | Edit permission (default: `false`)                                      |
+| `can_delete` | bool   | ❌       | Delete permission (default: `false`)                                    |
 
 #### cURL
 
@@ -1013,11 +1012,11 @@ curl -X POST http://localhost:8080/api/v1/admin/role-permissions \
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
-    "role": "admin",
-    "resource": "branch",
+    "role": "manager",
+    "resource": "payroll",
     "can_view": true,
-    "can_create": true,
-    "can_edit": true,
+    "can_create": false,
+    "can_edit": false,
     "can_delete": false
   }'
 ```
@@ -1029,11 +1028,11 @@ curl -X POST http://localhost:8080/api/v1/admin/role-permissions \
   "success": true,
   "data": {
     "id": "de0e8400-e29b-41d4-a716-446655440003",
-    "role": "admin",
-    "resource": "branch",
+    "role": "manager",
+    "resource": "payroll",
     "can_view": true,
-    "can_create": true,
-    "can_edit": true,
+    "can_create": false,
+    "can_edit": false,
     "can_delete": false,
     "created_at": "2026-04-01T12:00:00Z"
   }
@@ -1059,14 +1058,14 @@ PUT /api/v1/admin/role-permissions/{id}
 
 #### Request Body
 
-| Field         | Type    | Required | Description |
-|--------------|---------|----------|-------------|
-| `role`        | string  | ❌       | Updated role |
-| `resource`    | string  | ❌       | Updated resource key |
-| `can_view`    | bool    | ❌       | Updated view permission |
-| `can_create`  | bool    | ❌       | Updated create permission |
-| `can_edit`    | bool    | ❌       | Updated edit permission |
-| `can_delete`  | bool    | ❌       | Updated delete permission |
+| Field        | Type   | Required | Description              |
+|-------------|--------|----------|--------------------------|
+| `role`       | string | ❌       | Updated role             |
+| `resource`   | string | ❌       | Updated resource key     |
+| `can_view`   | bool   | ❌       | Updated view permission  |
+| `can_create` | bool   | ❌       | Updated create permission|
+| `can_edit`   | bool   | ❌       | Updated edit permission  |
+| `can_delete` | bool   | ❌       | Updated delete permission|
 
 #### cURL
 
@@ -1076,7 +1075,7 @@ curl -X PUT http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b-41
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
-    "can_delete": true
+    "can_edit": true
   }'
 ```
 
@@ -1087,12 +1086,12 @@ curl -X PUT http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b-41
   "success": true,
   "data": {
     "id": "de0e8400-e29b-41d4-a716-446655440003",
-    "role": "admin",
-    "resource": "branch",
+    "role": "manager",
+    "resource": "payroll",
     "can_view": true,
-    "can_create": true,
+    "can_create": false,
     "can_edit": true,
-    "can_delete": true,
+    "can_delete": false,
     "created_at": "2026-04-01T12:00:00Z"
   }
 }
@@ -1178,34 +1177,46 @@ curl -X DELETE http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b
 
 ## Status Codes Summary
 
-| Code  | Meaning                | When                                                      |
-|-------|------------------------|-----------------------------------------------------------|
-| `200` | OK                     | Successful read, update, or delete                        |
-| `201` | Created                | Successfully created a branch, user, menu, or role permission |
-| `400` | Bad Request            | Invalid JSON or missing required fields                   |
-| `401` | Unauthorized           | Missing/invalid API key or JWT token                      |
-| `403` | Forbidden              | Authenticated user is not a `super_admin` |
-| `404` | Not Found              | Branch, user, menu, or role permission with the given ID doesn't exist |
-| `500` | Internal Server Error  | Database constraint violation or unexpected server error   |
+| Code  | Meaning               | When                                                                   |
+|-------|-----------------------|------------------------------------------------------------------------|
+| `200` | OK                    | Successful read, update, or delete                                     |
+| `201` | Created               | Successfully created a branch, user, menu, or role permission          |
+| `400` | Bad Request           | Invalid JSON, missing required fields, or invalid enum value           |
+| `401` | Unauthorized          | Missing/invalid API key or JWT token                                   |
+| `403` | Forbidden             | Authenticated user is not a `super_admin`                              |
+| `404` | Not Found             | Branch, user, menu, or role permission with the given ID doesn't exist |
+| `500` | Internal Server Error | Database constraint violation or unexpected server error               |
 
 ---
 
 ## Available User Roles
 
-| Role             | Description                           |
-|-----------------|---------------------------------------|
-| `super_admin`    | Full system access across all branches |
-| `admin`          | Branch-level full access              |
-| `doctor`         | View patients, appointments           |
-| `receptionist`   | Manage patients, appointments         |
-| `billing_staff`  | Manage billing only                   |
-| `pharmacist`     | View prescriptions                    |
+| Role          | Description                                               |
+|--------------|-----------------------------------------------------------|
+| `super_admin` | Full system access across all branches                    |
+| `admin`       | Branch-level full access — acts as branch manager         |
+| `manager`     | Manages employees; views and approves attendance & payroll|
+| `employee`    | Punches in/out via mobile; views own attendance & salary  |
+
+---
+
+## Available Resources
+
+| Resource     | Description                              |
+|-------------|------------------------------------------|
+| `employee`   | Employee records and profiles            |
+| `attendance` | Punch-in/out records and working hours   |
+| `payroll`    | Salary calculation and payment records   |
+| `report`     | Attendance and payroll reports           |
+| `settings`   | System and branch configuration          |
+
+---
 
 ## Available User Statuses
 
-| Status      | Description                |
-|------------|----------------------------|
-| `active`    | User can log in            |
-| `inactive`  | Account disabled           |
-| `suspended` | Temporarily suspended      |
-| `pending`   | Awaiting activation        |
+| Status      | Description               |
+|------------|---------------------------|
+| `active`    | User can log in           |
+| `inactive`  | Account disabled          |
+| `suspended` | Temporarily suspended     |
+| `pending`   | Awaiting activation       |

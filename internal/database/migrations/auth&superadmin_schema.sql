@@ -10,11 +10,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================
 CREATE TYPE user_role AS ENUM (
     'super_admin',    -- Full system access across all branches
-    'admin',          -- Branch level full access
-    'doctor',         -- View patients, appointments
-    'receptionist',   -- Manage patients, appointments
-    'billing_staff',  -- Manage billing only
-    'pharmacist'      -- View prescriptions
+    'admin',          -- Branch level full access (Manager)
+    'manager',        -- Manages employees within a branch
+    'employee'        -- Punches in/out; views own attendance and salary
 );
 
 CREATE TYPE user_status AS ENUM (
@@ -60,7 +58,7 @@ CREATE TABLE users (
     email           VARCHAR(150) NOT NULL UNIQUE,
     phone           VARCHAR(20),
     password_hash   TEXT NOT NULL,
-    role            user_role NOT NULL DEFAULT 'receptionist',
+    role            user_role NOT NULL DEFAULT 'employee',
     status          user_status NOT NULL DEFAULT 'active',
     avatar_url      TEXT,
     last_login_at   TIMESTAMPTZ,
@@ -249,41 +247,25 @@ VALUES (
 
 -- Seed default role permissions
 INSERT INTO role_permissions (role, resource, can_view, can_create, can_edit, can_delete) VALUES
-('super_admin',   'patient',         TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'medical_history', TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'lab_result',      TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'billing',         TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'appointment',     TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'doctor',          TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'report',          TRUE, TRUE,  TRUE,  TRUE),
-('super_admin',   'settings',        TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'employee',    TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'attendance',  TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'payroll',     TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'report',      TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'settings',    TRUE, TRUE,  TRUE,  TRUE),
 
-('admin',         'patient',         TRUE, TRUE,  TRUE,  TRUE),
-('admin',         'medical_history', TRUE, TRUE,  TRUE,  TRUE),
-('admin',         'lab_result',      TRUE, TRUE,  TRUE,  TRUE),
-('admin',         'billing',         TRUE, TRUE,  TRUE,  TRUE),
-('admin',         'appointment',     TRUE, TRUE,  TRUE,  TRUE),
-('admin',         'doctor',          TRUE, TRUE,  TRUE,  FALSE),
-('admin',         'report',          TRUE, FALSE, FALSE, FALSE),
-('admin',         'settings',        TRUE, TRUE,  TRUE,  FALSE),
+('admin',        'employee',    TRUE, TRUE,  TRUE,  TRUE),
+('admin',        'attendance',  TRUE, TRUE,  TRUE,  TRUE),
+('admin',        'payroll',     TRUE, TRUE,  FALSE, FALSE),
+('admin',        'report',      TRUE, FALSE, FALSE, FALSE),
+('admin',        'settings',    TRUE, TRUE,  TRUE,  FALSE),
 
-('doctor',        'patient',         TRUE, FALSE, FALSE, FALSE),
-('doctor',        'medical_history', TRUE, TRUE,  TRUE,  FALSE),
-('doctor',        'lab_result',      TRUE, TRUE,  TRUE,  FALSE),
-('doctor',        'appointment',     TRUE, TRUE,  TRUE,  FALSE),
-('doctor',        'billing',         TRUE, FALSE, FALSE, FALSE),
+('manager',      'employee',    TRUE, FALSE, FALSE, FALSE),
+('manager',      'attendance',  TRUE, TRUE,  TRUE,  FALSE),
+('manager',      'payroll',     TRUE, FALSE, FALSE, FALSE),
+('manager',      'report',      TRUE, FALSE, FALSE, FALSE),
 
-('receptionist',  'patient',         TRUE, TRUE,  TRUE,  FALSE),
-('receptionist',  'medical_history', TRUE, FALSE, FALSE, FALSE),
-('receptionist',  'lab_result',      TRUE, FALSE, FALSE, FALSE),
-('receptionist',  'appointment',     TRUE, TRUE,  TRUE,  FALSE),
-('receptionist',  'billing',         TRUE, FALSE, FALSE, FALSE),
-
-('billing_staff', 'billing',         TRUE, TRUE,  TRUE,  FALSE),
-('billing_staff', 'patient',         TRUE, FALSE, FALSE, FALSE),
-
-('pharmacist',    'patient',         TRUE, FALSE, FALSE, FALSE),
-('pharmacist',    'medical_history', TRUE, FALSE, FALSE, FALSE);
+('employee',     'attendance',  TRUE, FALSE, FALSE, FALSE),
+('employee',     'payroll',     TRUE, FALSE, FALSE, FALSE);
 
 -- Seed default menus (sidebar navigation)
 -- Single-page menus: leaf items link directly to a page
@@ -291,19 +273,17 @@ INSERT INTO role_permissions (role, resource, can_view, can_create, can_edit, ca
 
 -- Top level menus (parent_id = NULL)
 INSERT INTO menus (id, parent_id, label, path, resource, sort_order) VALUES
-(uuid_generate_v4(), NULL, 'Dashboard',    '/dashboard',    NULL,          1),
-(uuid_generate_v4(), NULL, 'Patients',     NULL,            'patient',     2),
-(uuid_generate_v4(), NULL, 'Appointments', '/appointments', 'appointment', 3),
-(uuid_generate_v4(), NULL, 'Billing',      '/billing',      'billing',     4),
-(uuid_generate_v4(), NULL, 'Doctors',      '/doctors',      'doctor',      5),
-(uuid_generate_v4(), NULL, 'Reports',      '/reports',      'report',      6),
-(uuid_generate_v4(), NULL, 'Settings',     '/settings',     'settings',    7);
+(uuid_generate_v4(), NULL, 'Dashboard',  '/dashboard',  NULL,         1),
+(uuid_generate_v4(), NULL, 'Employees',  NULL,          'employee',   2),
+(uuid_generate_v4(), NULL, 'Attendance', '/attendance', 'attendance', 3),
+(uuid_generate_v4(), NULL, 'Payroll',    '/payroll',    'payroll',    4),
+(uuid_generate_v4(), NULL, 'Reports',    '/reports',    'report',     5),
+(uuid_generate_v4(), NULL, 'Settings',   '/settings',   'settings',   6);
 
--- Sub menus for Patients (genuinely different features/views)
+-- Sub menus for Employees
 INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
-((SELECT id FROM menus WHERE label = 'Patients' AND parent_id IS NULL), 'Patient Records',  '/patients',          'patient', 1),
-((SELECT id FROM menus WHERE label = 'Patients' AND parent_id IS NULL), 'Medical History',  '/patients/history',  'medical_history', 2),
-((SELECT id FROM menus WHERE label = 'Patients' AND parent_id IS NULL), 'Lab Results',      '/patients/labs',     'lab_result', 3);
+((SELECT id FROM menus WHERE label = 'Employees' AND parent_id IS NULL), 'Employee List',   '/employees',         'employee', 1),
+((SELECT id FROM menus WHERE label = 'Employees' AND parent_id IS NULL), 'Work Schedule',   '/employees/schedule','attendance', 2);
 
 
 -- ============================================
@@ -318,5 +298,5 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 --             ├── sessions  → Active login sessions (per device)
 --             └── login_audit → All login attempts logged
 --
--- role_permissions  → What each role can do per resource
+-- role_permissions  → What each role (super_admin/admin/manager/employee) can do per resource
 -- menus             → Sidebar navigation with tree structure (filtered by role_permissions)

@@ -214,7 +214,7 @@ curl -X POST http://localhost:8080/api/v1/auth/refresh \
 After login, include the access token in all protected API requests:
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/patients \
+curl -X GET http://localhost:8080/api/v1/menus/me \
   -H "X-API-Key: your-mobile-app-api-key" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 ```
@@ -226,7 +226,7 @@ curl -X GET http://localhost:8080/api/v1/patients \
 | Claim       | Type   | Description                |
 |------------|--------|----------------------------|
 | `sub`       | string | User ID (UUID)             |
-| `role`      | string | User role (e.g. `super_admin`, `doctor`) |
+| `role`      | string | User role (e.g. `super_admin`, `manager`, `employee`) |
 | `branch_id` | string | Branch ID (UUID)           |
 | `exp`       | int    | Expiration timestamp       |
 | `iat`       | int    | Issued at timestamp        |

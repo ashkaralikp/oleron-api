@@ -310,38 +310,73 @@ curl -X GET http://localhost:8080/api/v1/menus/me \
   "success": true,
   "data": [
     {
-      "id": "9603600f-39dc-45ae-9718-d1f82791225d",
+      "id": "aa0e8400-e29b-41d4-a716-446655440001",
       "parent_id": null,
-      "label": "Settings",
-      "path": "/settings",
-      "resource": "settings",
-      "sort_order": 7,
+      "label": "Dashboard",
+      "path": "/dashboard",
+      "resource": null,
+      "sort_order": 1,
       "is_active": true,
       "permissions": {
         "can_view": true,
-        "can_create": true,
-        "can_edit": true,
+        "can_create": false,
+        "can_edit": false,
         "can_delete": false
       },
-      "created_at": "2026-04-01T11:51:38Z",
-      "updated_at": "2026-04-01T11:51:38Z",
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z",
+      "children": []
+    },
+    {
+      "id": "aa0e8400-e29b-41d4-a716-446655440002",
+      "parent_id": null,
+      "label": "Employees",
+      "path": null,
+      "resource": "employee",
+      "sort_order": 2,
+      "is_active": true,
+      "permissions": {
+        "can_view": true,
+        "can_create": false,
+        "can_edit": false,
+        "can_delete": false
+      },
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z",
       "children": [
         {
-          "id": "3fb2ea60-0d1a-4ea1-a220-f4dc0f958a01",
-          "parent_id": "9603600f-39dc-45ae-9718-d1f82791225d",
-          "label": "Users",
-          "path": "/settings/users",
-          "resource": "user",
+          "id": "bb0e8400-e29b-41d4-a716-446655440001",
+          "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+          "label": "Employee List",
+          "path": "/employees",
+          "resource": "employee",
+          "sort_order": 1,
+          "is_active": true,
+          "permissions": {
+            "can_view": true,
+            "can_create": false,
+            "can_edit": false,
+            "can_delete": false
+          },
+          "created_at": "2026-04-01T10:00:00Z",
+          "updated_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "bb0e8400-e29b-41d4-a716-446655440002",
+          "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+          "label": "Work Schedule",
+          "path": "/employees/schedule",
+          "resource": "attendance",
           "sort_order": 2,
           "is_active": true,
           "permissions": {
             "can_view": true,
-            "can_create": true,
-            "can_edit": true,
+            "can_create": false,
+            "can_edit": false,
             "can_delete": false
           },
-          "created_at": "2026-04-01T11:51:38Z",
-          "updated_at": "2026-04-01T11:51:38Z"
+          "created_at": "2026-04-01T10:00:00Z",
+          "updated_at": "2026-04-01T10:00:00Z"
         }
       ]
     }
