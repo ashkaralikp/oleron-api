@@ -6,11 +6,8 @@ import (
 	"rmp-api/internal/config"
 	"rmp-api/internal/middleware"
 	"rmp-api/internal/modules/admin"
-	"rmp-api/internal/modules/appointment"
 	"rmp-api/internal/modules/auth"
-	"rmp-api/internal/modules/billing"
 	"rmp-api/internal/modules/myprofile"
-	"rmp-api/internal/modules/patient"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -46,30 +43,6 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.Use(middleware.JWT(cfg))
 
 			profileHandler := myprofile.NewHandler(db)
-
-			// Patients
-			r.Route("/patients", func(r chi.Router) {
-				r.Get("/", patient.NewHandler(db).GetAll)
-				r.Post("/", patient.NewHandler(db).Create)
-				r.Get("/{id}", patient.NewHandler(db).GetByID)
-				r.Put("/{id}", patient.NewHandler(db).Update)
-				r.Delete("/{id}", patient.NewHandler(db).Delete)
-			})
-
-			// Billing
-			r.Route("/billing", func(r chi.Router) {
-				r.Get("/", billing.NewHandler(db).GetAll)
-				r.Post("/", billing.NewHandler(db).Create)
-				r.Get("/{id}", billing.NewHandler(db).GetByID)
-				r.Put("/{id}", billing.NewHandler(db).Update)
-			})
-
-			// Appointments
-			r.Route("/appointments", func(r chi.Router) {
-				r.Get("/", appointment.NewHandler(db).GetAll)
-				r.Post("/", appointment.NewHandler(db).Create)
-				r.Put("/{id}", appointment.NewHandler(db).Update)
-			})
 
 			// Admin routes (super_admin only)
 			r.Route("/admin", func(r chi.Router) {
