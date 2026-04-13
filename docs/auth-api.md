@@ -37,7 +37,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-mobile-app-api-key" \
   -d '{
-    "email": "admin@yourclinic.com",
+    "email": "admin@oleron.com",
     "password": "Admin@123"
   }'
 ```
@@ -57,7 +57,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "first_name": "Super",
       "last_name": "Admin",
-      "email": "admin@yourclinic.com",
+      "email": "admin@oleron.com",
       "role": "super_admin",
       "branch_id": "660e8400-e29b-41d4-a716-446655440000"
     }

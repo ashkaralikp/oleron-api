@@ -3,7 +3,7 @@ package appointment
 import (
 	"context"
 
-	"clinic-api/internal/models"
+	"rmp-api/internal/models"
 )
 
 type Service struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"clinic-api/internal/config"
+	"rmp-api/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

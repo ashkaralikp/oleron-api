@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"clinic-api/internal/config"
-	"clinic-api/internal/router"
+	"rmp-api/internal/config"
+	"rmp-api/internal/router"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

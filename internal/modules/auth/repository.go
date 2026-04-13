@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"clinic-api/internal/models"
+	"rmp-api/internal/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -67,7 +67,7 @@ curl -X PUT http://localhost:8080/api/v1/profile/me \
     "branch_id": "a0aa4f78-4b8c-4c48-9f2f-47ff0a87c000",
     "first_name": "Super",
     "last_name": "Admin",
-    "email": "admin@yourclinic.com",
+    "email": "admin@oleron.com",
     "phone": "+919999999999",
     "role": "super_admin",
     "status": "active",

@@ -1,4 +1,4 @@
-module clinic-api
+module rmp-api
 
 go 1.25.5
 

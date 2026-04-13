@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"clinic-api/internal/config"
-	"clinic-api/pkg/response"
+	"rmp-api/internal/config"
+	"rmp-api/pkg/response"
 
 	"github.com/golang-jwt/jwt/v5"
 )

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"clinic-api/pkg/response"
+	"rmp-api/pkg/response"
 )
 
 type visitor struct {

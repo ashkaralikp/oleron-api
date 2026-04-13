@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"clinic-api/internal/config"
-	"clinic-api/pkg/response"
+	"rmp-api/internal/config"
+	"rmp-api/pkg/response"
 )
 
 func APIKey(cfg *config.Config) func(http.Handler) http.Handler {

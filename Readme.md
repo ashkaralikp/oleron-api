@@ -1,6 +1,6 @@
 # OLERON RESOURCE MANAGEMENT API
 
-Minimal Go API starter for the clinic project.
+Go REST API for the Oleron Resource Management Platform.
 
 ## Available endpoint
 
@@ -13,7 +13,7 @@ Example response:
   "success": true,
   "data": {
     "status": "ok",
-    "service": "clinic-api",
+    "service": "rmp-api",
     "environment": "development"
   }
 }
@@ -36,7 +36,7 @@ curl http://localhost:8080/health
 
 
 # Project Structure
-clinic-api/
+rmp-api/
 │
 ├── cmd/
 │   └── api/

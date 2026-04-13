@@ -33,7 +33,7 @@ CREATE TYPE token_type AS ENUM (
 
 -- ============================================
 -- BRANCHES TABLE
--- Each clinic branch has its own record
+-- Each organization branch
 -- ============================================
 CREATE TABLE branches (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -222,9 +222,9 @@ VALUES (
     uuid_generate_v4(),
     'Main Branch',
     'BRANCH01',
-    '123 Clinic Street',
+    '123 Main Street',
     '+1234567890',
-    'main@yourclinic.com'
+    'main@oleron.com'
 );
 
 -- Insert super admin (password: Admin@123 - change immediately)
@@ -241,7 +241,7 @@ VALUES (
     (SELECT id FROM branches WHERE code = 'BRANCH01'),
     'Super',
     'Admin',
-    'admin@yourclinic.com',
+    'admin@oleron.com',
     '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8i', -- Admin@123
     'super_admin',
     'active'
@@ -310,7 +310,7 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 -- SCHEMA OVERVIEW
 -- ============================================
 --
--- branches          → Each clinic branch (identified by code e.g. BRANCH01)
+-- branches          → Each organization branch (identified by code e.g. BRANCH01)
 --     │
 --     └── users     → Staff accounts linked to a branch
 --             │

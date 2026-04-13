@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"clinic-api/internal/config"
-	"clinic-api/internal/database"
-	"clinic-api/internal/server"
+	"rmp-api/internal/config"
+	"rmp-api/internal/database"
+	"rmp-api/internal/server"
 )
 
 func main() {

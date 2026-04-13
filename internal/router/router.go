@@ -3,14 +3,14 @@ package router
 import (
 	"net/http"
 
-	"clinic-api/internal/config"
-	"clinic-api/internal/middleware"
-	"clinic-api/internal/modules/admin"
-	"clinic-api/internal/modules/appointment"
-	"clinic-api/internal/modules/auth"
-	"clinic-api/internal/modules/billing"
-	"clinic-api/internal/modules/myprofile"
-	"clinic-api/internal/modules/patient"
+	"rmp-api/internal/config"
+	"rmp-api/internal/middleware"
+	"rmp-api/internal/modules/admin"
+	"rmp-api/internal/modules/appointment"
+	"rmp-api/internal/modules/auth"
+	"rmp-api/internal/modules/billing"
+	"rmp-api/internal/modules/myprofile"
+	"rmp-api/internal/modules/patient"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"

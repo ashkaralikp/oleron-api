@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"clinic-api/internal/models"
-	"clinic-api/pkg/hash"
+	"rmp-api/internal/models"
+	"rmp-api/pkg/hash"
 )
 
 type Service struct {

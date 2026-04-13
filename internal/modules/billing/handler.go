@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"clinic-api/pkg/response"
+	"rmp-api/pkg/response"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

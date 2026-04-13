@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"clinic-api/internal/middleware"
-	"clinic-api/pkg/response"
+	"rmp-api/internal/middleware"
+	"rmp-api/pkg/response"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

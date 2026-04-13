@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"clinic-api/pkg/response"
+	"rmp-api/pkg/response"
 )
 
 // RequireRole restricts access to users with one of the allowed roles.

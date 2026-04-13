@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"clinic-api/pkg/hash"
-	pkgjwt "clinic-api/pkg/jwt"
+	"rmp-api/pkg/hash"
+	pkgjwt "rmp-api/pkg/jwt"
 )
 
 type Service struct {
