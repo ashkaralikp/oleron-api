@@ -240,7 +240,7 @@ VALUES (
     'Super',
     'Admin',
     'admin@oleron.com',
-    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8i', -- Admin@123
+    '$2a$10$Ht5bbEwwJ3ExRR8o.ygn1.PMdG.JwvsQyJt.jkDrTzBO3ALAYRsbK', -- admin
     'super_admin',
     'active'
 );
