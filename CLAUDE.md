@@ -122,9 +122,8 @@ Server defaults to `:8080`. Configure via `.env` (copy `.env.example`).
 ## Database
 
 PostgreSQL. Schema is managed via raw SQL files in `internal/database/migrations/`.  
-Currently two schema files exist:
+Currently one schema file exists:
 - `auth&superadmin_schema.sql` — extensions, enums, branches, users, tokens, sessions, login_audit, role_permissions, menus
-- `admin(branch)_schema.sql` — fee_types, branch_fee_overrides, lab_tests (to be replaced with RMP-specific tables)
 
 The `uuid-ossp` and `pgcrypto` extensions must be enabled.  
 An `update_updated_at()` trigger function is shared across tables.
