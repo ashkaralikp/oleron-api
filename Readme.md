@@ -1,4 +1,4 @@
-# Clinic API()
+# OLERON RESOURCE MANAGEMENT API
 
 Minimal Go API starter for the clinic project.
 
