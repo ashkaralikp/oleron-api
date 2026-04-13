@@ -195,6 +195,77 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // =============================================
+// EMPLOYEE HANDLERS
+// =============================================
+
+func (h *Handler) GetAllEmployees(w http.ResponseWriter, r *http.Request) {
+	employees, err := h.service.GetAllEmployees(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to fetch employees")
+		return
+	}
+	response.Success(w, employees)
+}
+
+func (h *Handler) GetEmployeeByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	employee, err := h.service.GetEmployeeByID(r.Context(), id)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "employee not found")
+		return
+	}
+	response.Success(w, employee)
+}
+
+func (h *Handler) CreateEmployee(w http.ResponseWriter, r *http.Request) {
+	var req CreateEmployeeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.BranchID == "" || req.EmployeeCode == "" || req.JoiningDate == "" {
+		response.Error(w, http.StatusBadRequest, "first_name, last_name, email, password, branch_id, employee_code, and joining_date are required")
+		return
+	}
+
+	employee, err := h.service.CreateEmployee(r.Context(), req)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to create employee: "+err.Error())
+		return
+	}
+	response.Created(w, employee)
+}
+
+func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req UpdateEmployeeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	employee, err := h.service.UpdateEmployee(r.Context(), id, req)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to update employee: "+err.Error())
+		return
+	}
+	response.Success(w, employee)
+}
+
+func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if err := h.service.DeleteEmployee(r.Context(), id); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to delete employee: "+err.Error())
+		return
+	}
+	response.Success(w, map[string]string{"message": "employee deleted"})
+}
+
+// =============================================
 // MENU HANDLERS
 // =============================================
 

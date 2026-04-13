@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"time"
 
 	"rmp-api/internal/models"
 	"rmp-api/pkg/hash"
@@ -177,6 +178,120 @@ func (s *Service) ResetUserPassword(ctx context.Context, id string, req ResetPas
 
 func (s *Service) DeleteUser(ctx context.Context, id string) error {
 	return s.repo.DeleteUser(ctx, id)
+}
+
+// =============================================
+// EMPLOYEE SERVICE
+// =============================================
+
+func (s *Service) GetAllEmployees(ctx context.Context) ([]models.Employee, error) {
+	return s.repo.FindAllEmployees(ctx)
+}
+
+func (s *Service) GetEmployeeByID(ctx context.Context, id string) (*models.Employee, error) {
+	return s.repo.FindEmployeeByID(ctx, id)
+}
+
+func (s *Service) CreateEmployee(ctx context.Context, req CreateEmployeeRequest) (*models.Employee, error) {
+	passwordHash, err := hash.HashPassword(req.Password)
+	if err != nil {
+		return nil, errors.New("failed to hash password")
+	}
+
+	u := &models.User{
+		BranchID:     req.BranchID,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Email:        req.Email,
+		PasswordHash: passwordHash,
+	}
+	if req.Phone != "" {
+		u.Phone = &req.Phone
+	}
+
+	e := &models.Employee{
+		BranchID:       req.BranchID,
+		ManagerID:      req.ManagerID,
+		EmployeeCode:   req.EmployeeCode,
+		EmploymentType: "full_time",
+		HourlyRate:     req.HourlyRate,
+	}
+	if req.Designation != "" {
+		e.Designation = &req.Designation
+	}
+	if req.EmploymentType != "" {
+		e.EmploymentType = req.EmploymentType
+	}
+
+	joiningDate, err := parseDate(req.JoiningDate)
+	if err != nil {
+		return nil, errors.New("invalid joining_date format, use YYYY-MM-DD")
+	}
+	e.JoiningDate = joiningDate
+
+	if err := s.repo.CreateEmployee(ctx, u, e); err != nil {
+		return nil, err
+	}
+
+	e.FirstName = u.FirstName
+	e.LastName = u.LastName
+	e.Email = u.Email
+	e.Phone = u.Phone
+	e.Status = "active"
+	return e, nil
+}
+
+func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmployeeRequest) (*models.Employee, error) {
+	existing, err := s.repo.FindEmployeeByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("employee not found")
+	}
+
+	u := &models.User{
+		FirstName: existing.FirstName,
+		LastName:  existing.LastName,
+		Phone:     existing.Phone,
+		Status:    existing.Status,
+	}
+	if req.FirstName != "" {
+		u.FirstName = req.FirstName
+	}
+	if req.LastName != "" {
+		u.LastName = req.LastName
+	}
+	if req.Phone != "" {
+		u.Phone = &req.Phone
+	}
+	if req.Status != "" {
+		u.Status = req.Status
+	}
+
+	if req.ManagerID != nil {
+		existing.ManagerID = req.ManagerID
+	}
+	if req.Designation != "" {
+		existing.Designation = &req.Designation
+	}
+	if req.EmploymentType != "" {
+		existing.EmploymentType = req.EmploymentType
+	}
+	if req.HourlyRate != nil {
+		existing.HourlyRate = req.HourlyRate
+	}
+
+	if err := s.repo.UpdateEmployee(ctx, id, u, existing); err != nil {
+		return nil, err
+	}
+
+	existing.FirstName = u.FirstName
+	existing.LastName = u.LastName
+	existing.Phone = u.Phone
+	existing.Status = u.Status
+	return existing, nil
+}
+
+func (s *Service) DeleteEmployee(ctx context.Context, id string) error {
+	return s.repo.DeleteEmployee(ctx, id)
 }
 
 // =============================================
@@ -356,4 +471,8 @@ func BuildMenuTree(flatMenus []models.Menu) []models.Menu {
 	}
 
 	return roots
+}
+
+func parseDate(s string) (time.Time, error) {
+	return time.Parse("2006-01-02", s)
 }

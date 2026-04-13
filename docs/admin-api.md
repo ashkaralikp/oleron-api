@@ -24,6 +24,12 @@ Base URL: `http://localhost:8080/api/v1/admin`
   - [4. Update User](#4-update-user)
   - [5. Reset User Password](#5-reset-user-password)
   - [6. Delete User](#6-delete-user)
+- [Employees](#employees)
+  - [1. List All Employees](#1-list-all-employees)
+  - [2. Get Employee by ID](#2-get-employee-by-id)
+  - [3. Create Employee](#3-create-employee)
+  - [4. Update Employee](#4-update-employee)
+  - [5. Delete Employee](#5-delete-employee)
 - [Menus (super_admin only)](#menus-super_admin-only)
   - [1. List All Menus (Flat)](#1-list-all-menus-flat)
   - [2. List All Menus (Tree)](#2-list-all-menus-tree)
@@ -553,6 +559,287 @@ curl -X DELETE http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-
 
 ---
 
+## Employees
+
+> **Access:** `super_admin`, `admin`, `manager`
+>
+> Base path: `/api/v1/employees` (not under `/admin`)
+>
+> Employees are operational records linked to a user account. Creating an employee creates both a `users` row (role: `employee`) and an `employees` row in a single transaction.
+> Each employee belongs to a **branch** and is assigned to a **manager**.
+
+### 1. List All Employees
+
+```
+GET /api/v1/employees
+```
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/employees \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "ee0e8400-e29b-41d4-a716-446655440001",
+      "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
+      "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+      "manager_id": "880e8400-e29b-41d4-a716-446655440002",
+      "employee_code": "EMP001",
+      "designation": "Software Engineer",
+      "employment_type": "full_time",
+      "hourly_rate": 25.00,
+      "joining_date": "2026-01-15T00:00:00Z",
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "email": "jane.smith@oleron.com",
+      "phone": "+1122334455",
+      "status": "active",
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Get Employee by ID
+
+```
+GET /api/v1/employees/{id}
+```
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ee0e8400-e29b-41d4-a716-446655440001",
+    "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "manager_id": "880e8400-e29b-41d4-a716-446655440002",
+    "employee_code": "EMP001",
+    "designation": "Software Engineer",
+    "employment_type": "full_time",
+    "hourly_rate": 25.00,
+    "joining_date": "2026-01-15T00:00:00Z",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane.smith@oleron.com",
+    "phone": "+1122334455",
+    "status": "active",
+    "created_at": "2026-04-01T10:00:00Z",
+    "updated_at": "2026-04-01T10:00:00Z"
+  }
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "employee not found"
+}
+```
+
+---
+
+### 3. Create Employee
+
+Creates a user account (`role: employee`) and an employee profile in a single transaction.
+
+```
+POST /api/v1/employees
+```
+
+#### Request Body
+
+| Field             | Type   | Required | Description                                              |
+|------------------|--------|----------|----------------------------------------------------------|
+| `first_name`      | string | ✅       | Employee's first name                                    |
+| `last_name`       | string | ✅       | Employee's last name                                     |
+| `email`           | string | ✅       | Unique email (used for login)                            |
+| `password`        | string | ✅       | Initial password (min 6 chars, stored as bcrypt hash)    |
+| `branch_id`       | string | ✅       | UUID of the branch this employee belongs to              |
+| `employee_code`   | string | ✅       | Unique code used for mobile punch-in/out (e.g. `EMP001`) |
+| `joining_date`    | string | ✅       | Date in `YYYY-MM-DD` format                              |
+| `phone`           | string | ❌       | Contact phone number                                     |
+| `manager_id`      | string | ❌       | UUID of the manager (must have `manager` role)           |
+| `designation`     | string | ❌       | Job title (e.g. `"Software Engineer"`)                   |
+| `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
+| `hourly_rate`     | number | ❌       | Hourly rate used for salary calculation                  |
+
+#### cURL
+
+```bash
+curl -X POST http://localhost:8080/api/v1/employees \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane.smith@oleron.com",
+    "password": "SecurePass123",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "manager_id": "880e8400-e29b-41d4-a716-446655440002",
+    "employee_code": "EMP001",
+    "designation": "Software Engineer",
+    "employment_type": "full_time",
+    "hourly_rate": 25.00,
+    "joining_date": "2026-01-15",
+    "phone": "+1122334455"
+  }'
+```
+
+#### ✅ 201 Created
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ee0e8400-e29b-41d4-a716-446655440001",
+    "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "manager_id": "880e8400-e29b-41d4-a716-446655440002",
+    "employee_code": "EMP001",
+    "designation": "Software Engineer",
+    "employment_type": "full_time",
+    "hourly_rate": 25.00,
+    "joining_date": "2026-01-15T00:00:00Z",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane.smith@oleron.com",
+    "phone": "+1122334455",
+    "status": "active",
+    "created_at": "2026-04-01T10:00:00Z",
+    "updated_at": "2026-04-01T10:00:00Z"
+  }
+}
+```
+
+#### ❌ 400 Bad Request
+
+```json
+{
+  "success": false,
+  "error": "first_name, last_name, email, password, branch_id, employee_code, and joining_date are required"
+}
+```
+
+---
+
+### 4. Update Employee
+
+Updates user account fields and employee profile fields. `branch_id` and `employee_code` cannot be changed after creation.
+
+```
+PUT /api/v1/employees/{id}
+```
+
+#### Request Body
+
+| Field             | Type   | Required | Description                                                          |
+|------------------|--------|----------|----------------------------------------------------------------------|
+| `first_name`      | string | ❌       | Updated first name                                                   |
+| `last_name`       | string | ❌       | Updated last name                                                    |
+| `phone`           | string | ❌       | Updated phone number                                                 |
+| `status`          | string | ❌       | One of: `active`, `inactive`, `suspended`, `pending`                 |
+| `manager_id`      | string | ❌       | Reassign to a different manager                                      |
+| `designation`     | string | ❌       | Updated job title                                                    |
+| `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract`                         |
+| `hourly_rate`     | number | ❌       | Updated hourly rate                                                  |
+
+#### cURL
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-446655440001 \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "designation": "Senior Software Engineer",
+    "hourly_rate": 30.00,
+    "status": "active"
+  }'
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "ee0e8400-e29b-41d4-a716-446655440001",
+    "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "manager_id": "880e8400-e29b-41d4-a716-446655440002",
+    "employee_code": "EMP001",
+    "designation": "Senior Software Engineer",
+    "employment_type": "full_time",
+    "hourly_rate": 30.00,
+    "joining_date": "2026-01-15T00:00:00Z",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane.smith@oleron.com",
+    "phone": "+1122334455",
+    "status": "active",
+    "created_at": "2026-04-01T10:00:00Z",
+    "updated_at": "2026-04-13T09:00:00Z"
+  }
+}
+```
+
+---
+
+### 5. Delete Employee
+
+Deletes the employee profile **and** the linked user account (cascades via foreign key).
+
+```
+DELETE /api/v1/employees/{id}
+```
+
+#### cURL
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "employee deleted"
+  }
+}
+```
+
+---
+
 ## Menus (super_admin only)
 
 > Menu items use a **tree structure** via `parent_id`. Top-level menus have `parent_id: null`.
@@ -595,9 +882,9 @@ curl -X GET http://localhost:8080/api/v1/admin/menus \
     {
       "id": "aa0e8400-e29b-41d4-a716-446655440002",
       "parent_id": null,
-      "label": "Employees",
+      "label": "Settings",
       "path": null,
-      "resource": "employee",
+      "resource": "settings",
       "sort_order": 2,
       "is_active": true,
       "created_at": "2026-04-01T10:00:00Z",
@@ -606,10 +893,43 @@ curl -X GET http://localhost:8080/api/v1/admin/menus \
     {
       "id": "bb0e8400-e29b-41d4-a716-446655440001",
       "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-      "label": "Employee List",
-      "path": "/employees",
-      "resource": "employee",
+      "label": "Users",
+      "path": "/settings/users",
+      "resource": "user",
       "sort_order": 1,
+      "is_active": true,
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
+    },
+    {
+      "id": "bb0e8400-e29b-41d4-a716-446655440002",
+      "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+      "label": "Branches",
+      "path": "/settings/branches",
+      "resource": "branch",
+      "sort_order": 2,
+      "is_active": true,
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
+    },
+    {
+      "id": "bb0e8400-e29b-41d4-a716-446655440003",
+      "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+      "label": "Roles & Permissions",
+      "path": "/settings/role",
+      "resource": "role",
+      "sort_order": 3,
+      "is_active": true,
+      "created_at": "2026-04-01T10:00:00Z",
+      "updated_at": "2026-04-01T10:00:00Z"
+    },
+    {
+      "id": "bb0e8400-e29b-41d4-a716-446655440004",
+      "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+      "label": "Menu Settings",
+      "path": "/settings/menus",
+      "resource": "menu",
+      "sort_order": 4,
       "is_active": true,
       "created_at": "2026-04-01T10:00:00Z",
       "updated_at": "2026-04-01T10:00:00Z"
@@ -655,17 +975,17 @@ curl -X GET http://localhost:8080/api/v1/admin/menus/tree \
     {
       "id": "aa0e8400-e29b-41d4-a716-446655440002",
       "parent_id": null,
-      "label": "Employees",
-      "resource": "employee",
+      "label": "Settings",
+      "resource": "settings",
       "sort_order": 2,
       "is_active": true,
       "children": [
         {
           "id": "bb0e8400-e29b-41d4-a716-446655440001",
           "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-          "label": "Employee List",
-          "path": "/employees",
-          "resource": "employee",
+          "label": "Users",
+          "path": "/settings/users",
+          "resource": "user",
           "sort_order": 1,
           "is_active": true,
           "created_at": "2026-04-01T10:00:00Z",
@@ -674,10 +994,32 @@ curl -X GET http://localhost:8080/api/v1/admin/menus/tree \
         {
           "id": "bb0e8400-e29b-41d4-a716-446655440002",
           "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
-          "label": "Work Schedule",
-          "path": "/employees/schedule",
-          "resource": "attendance",
+          "label": "Branches",
+          "path": "/settings/branches",
+          "resource": "branch",
           "sort_order": 2,
+          "is_active": true,
+          "created_at": "2026-04-01T10:00:00Z",
+          "updated_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "bb0e8400-e29b-41d4-a716-446655440003",
+          "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+          "label": "Roles & Permissions",
+          "path": "/settings/role",
+          "resource": "role",
+          "sort_order": 3,
+          "is_active": true,
+          "created_at": "2026-04-01T10:00:00Z",
+          "updated_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "bb0e8400-e29b-41d4-a716-446655440004",
+          "parent_id": "aa0e8400-e29b-41d4-a716-446655440002",
+          "label": "Menu Settings",
+          "path": "/settings/menus",
+          "resource": "menu",
+          "sort_order": 4,
           "is_active": true,
           "created_at": "2026-04-01T10:00:00Z",
           "updated_at": "2026-04-01T10:00:00Z"
@@ -748,7 +1090,7 @@ POST /api/v1/admin/menus
 | `label`      | string  | ✅       | Display label (e.g. `"Attendance"`)                                                      |
 | `parent_id`  | string  | ❌       | UUID of parent menu (`null` for top-level)                                               |
 | `path`       | string  | ❌       | Route path (`null` for parent menus with children)                                       |
-| `resource`   | string  | ❌       | One of: `employee`, `attendance`, `payroll`, `report`, `settings` |
+| `resource`   | string  | ❌       | One of: `user`, `branch`, `role`, `menu`, `employee`, `attendance`, `payroll`, `report` |
 | `sort_order` | int     | ❌       | Display order (default: `0`)                                                             |
 
 #### cURL — Create a top-level menu
@@ -997,8 +1339,8 @@ POST /api/v1/admin/role-permissions
 
 | Field        | Type   | Required | Description                                                             |
 |-------------|--------|----------|-------------------------------------------------------------------------|
-| `role`       | string | ✅       | One of: `super_admin`, `admin`, `manager`, `employee`                   |
-| `resource`   | string | ✅       | One of: `employee`, `attendance`, `payroll`, `report`, `settings`       |
+| `role`       | string | ✅       | One of: `super_admin`, `admin`, `manager`, `employee`                                    |
+| `resource`   | string | ✅       | One of: `user`, `branch`, `role`, `menu`, `employee`, `attendance`, `payroll`, `report` |
 | `can_view`   | bool   | ❌       | View permission (default: `false`)                                      |
 | `can_create` | bool   | ❌       | Create permission (default: `false`)                                    |
 | `can_edit`   | bool   | ❌       | Edit permission (default: `false`)                                      |
@@ -1061,7 +1403,7 @@ PUT /api/v1/admin/role-permissions/{id}
 | Field        | Type   | Required | Description              |
 |-------------|--------|----------|--------------------------|
 | `role`       | string | ❌       | Updated role             |
-| `resource`   | string | ❌       | Updated resource key     |
+| `resource`   | string | ❌       | One of: `user`, `branch`, `role`, `menu`, `employee`, `attendance`, `payroll`, `report` |
 | `can_view`   | bool   | ❌       | Updated view permission  |
 | `can_create` | bool   | ❌       | Updated create permission|
 | `can_edit`   | bool   | ❌       | Updated edit permission  |
@@ -1180,11 +1522,11 @@ curl -X DELETE http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b
 | Code  | Meaning               | When                                                                   |
 |-------|-----------------------|------------------------------------------------------------------------|
 | `200` | OK                    | Successful read, update, or delete                                     |
-| `201` | Created               | Successfully created a branch, user, menu, or role permission          |
-| `400` | Bad Request           | Invalid JSON, missing required fields, or invalid enum value           |
-| `401` | Unauthorized          | Missing/invalid API key or JWT token                                   |
-| `403` | Forbidden             | Authenticated user is not a `super_admin`                              |
-| `404` | Not Found             | Branch, user, menu, or role permission with the given ID doesn't exist |
+| `201` | Created               | Successfully created a branch, user, employee, menu, or role permission          |
+| `400` | Bad Request           | Invalid JSON, missing required fields, or invalid enum value                     |
+| `401` | Unauthorized          | Missing/invalid API key or JWT token                                             |
+| `403` | Forbidden             | Authenticated user is not a `super_admin`                                        |
+| `404` | Not Found             | Branch, user, employee, menu, or role permission with the given ID doesn't exist |
 | `500` | Internal Server Error | Database constraint violation or unexpected server error               |
 
 ---
@@ -1202,13 +1544,16 @@ curl -X DELETE http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b
 
 ## Available Resources
 
-| Resource     | Description                              |
-|-------------|------------------------------------------|
-| `employee`   | Employee records and profiles            |
-| `attendance` | Punch-in/out records and working hours   |
-| `payroll`    | Salary calculation and payment records   |
-| `report`     | Attendance and payroll reports           |
-| `settings`   | System and branch configuration          |
+| Resource     | Description                              | Used in                |
+|-------------|------------------------------------------|------------------------|
+| `user`       | Platform staff accounts (admin, manager) | Settings > Users       |
+| `branch`     | Organization branches                    | Settings > Branches    |
+| `role`       | Role & permission management             | Settings > Roles & Permissions |
+| `menu`       | Sidebar navigation menus                 | Settings > Menu Settings |
+| `employee`   | Employee records and HR profiles         | Employees menu         |
+| `attendance` | Punch-in/out records and working hours   | Attendance menu        |
+| `payroll`    | Salary calculation and payment records   | Payroll menu           |
+| `report`     | Attendance and payroll reports           | Reports menu           |
 
 ---
 

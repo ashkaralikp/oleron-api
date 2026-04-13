@@ -43,14 +43,24 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.Use(middleware.JWT(cfg))
 
 			profileHandler := myprofile.NewHandler(db)
+			adminHandler := admin.NewHandler(db)
+
+			// Employee routes (super_admin, admin, manager)
+			r.Route("/employees", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/", adminHandler.GetAllEmployees)
+				r.Post("/", adminHandler.CreateEmployee)
+				r.Get("/{id}", adminHandler.GetEmployeeByID)
+				r.Put("/{id}", adminHandler.UpdateEmployee)
+				r.Delete("/{id}", adminHandler.DeleteEmployee)
+			})
 
 			// Admin routes (super_admin only)
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(middleware.RequireRole("super_admin"))
 
-				adminHandler := admin.NewHandler(db)
-
 				// Branches
+
 				r.Route("/branches", func(r chi.Router) {
 					r.Get("/", adminHandler.GetAllBranches)
 					r.Post("/", adminHandler.CreateBranch)

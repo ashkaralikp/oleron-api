@@ -135,6 +135,25 @@ CREATE TABLE role_permissions (
 
 
 -- ============================================
+-- EMPLOYEES TABLE
+-- HR profile linked to a user account
+-- ============================================
+CREATE TABLE employees (
+    id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    branch_id        UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    manager_id       UUID REFERENCES users(id) ON DELETE SET NULL,  -- manager of this employee
+    employee_code    VARCHAR(20) NOT NULL UNIQUE,                   -- used for mobile punch-in/out
+    designation      VARCHAR(100),
+    employment_type  VARCHAR(20) DEFAULT 'full_time',               -- full_time, part_time, contract
+    hourly_rate      NUMERIC(10,2),
+    joining_date     DATE NOT NULL,
+    created_at       TIMESTAMPTZ DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- ============================================
 -- MENUS TABLE
 -- Sidebar/navigation menus with tree structure
 -- ============================================
@@ -176,6 +195,12 @@ CREATE INDEX idx_login_audit_user_id ON login_audit(user_id);
 CREATE INDEX idx_login_audit_email ON login_audit(email);
 CREATE INDEX idx_login_audit_created_at ON login_audit(created_at);
 
+-- Employees
+CREATE INDEX idx_employees_user_id ON employees(user_id);
+CREATE INDEX idx_employees_branch_id ON employees(branch_id);
+CREATE INDEX idx_employees_manager_id ON employees(manager_id);
+CREATE INDEX idx_employees_employee_code ON employees(employee_code);
+
 -- Branches
 CREATE INDEX idx_branches_code ON branches(code);
 
@@ -203,6 +228,10 @@ CREATE TRIGGER trg_users_updated_at
 
 CREATE TRIGGER trg_branches_updated_at
     BEFORE UPDATE ON branches
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_employees_updated_at
+    BEFORE UPDATE ON employees
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER trg_menus_updated_at

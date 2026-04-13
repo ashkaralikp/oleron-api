@@ -114,6 +114,59 @@ type MenuResponse struct {
 }
 
 // =============================================
+// EMPLOYEE DTOs
+// =============================================
+
+type CreateEmployeeRequest struct {
+	// User account fields
+	FirstName string `json:"first_name" validate:"required"`
+	LastName  string `json:"last_name" validate:"required"`
+	Email     string `json:"email" validate:"required,email"`
+	Phone     string `json:"phone"`
+	Password  string `json:"password" validate:"required,min=6"`
+	// Employee profile fields
+	BranchID       string   `json:"branch_id" validate:"required"`
+	ManagerID      *string  `json:"manager_id"`
+	EmployeeCode   string   `json:"employee_code" validate:"required"`
+	Designation    string   `json:"designation"`
+	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
+	HourlyRate     *float64 `json:"hourly_rate"`
+	JoiningDate    string   `json:"joining_date" validate:"required"` // format: YYYY-MM-DD
+}
+
+type UpdateEmployeeRequest struct {
+	// User fields
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	Status    string `json:"status" validate:"omitempty,oneof=active inactive suspended pending"`
+	// Employee fields
+	ManagerID      *string  `json:"manager_id"`
+	Designation    string   `json:"designation"`
+	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
+	HourlyRate     *float64 `json:"hourly_rate"`
+}
+
+type EmployeeResponse struct {
+	ID             string   `json:"id"`
+	UserID         string   `json:"user_id"`
+	BranchID       string   `json:"branch_id"`
+	ManagerID      *string  `json:"manager_id,omitempty"`
+	EmployeeCode   string   `json:"employee_code"`
+	Designation    *string  `json:"designation,omitempty"`
+	EmploymentType string   `json:"employment_type"`
+	HourlyRate     *float64 `json:"hourly_rate,omitempty"`
+	JoiningDate    string   `json:"joining_date"`
+	FirstName      string   `json:"first_name"`
+	LastName       string   `json:"last_name"`
+	Email          string   `json:"email"`
+	Phone          *string  `json:"phone,omitempty"`
+	Status         string   `json:"status"`
+	CreatedAt      string   `json:"created_at"`
+	UpdatedAt      string   `json:"updated_at"`
+}
+
+// =============================================
 // ROLE PERMISSION DTOs
 // =============================================
 
