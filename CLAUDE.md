@@ -21,18 +21,14 @@ This is the backend API for **Oleron RMP** — a resource management system that
 - **Salary is calculated** from total working hours × the employee's configured hourly/daily rate.
 - Managers can view, correct, and approve attendance records for their team.
 
-### User Roles (current DB enum)
+### User Roles
 
 | Role | Access |
 |---|---|
 | `super_admin` | Full access across all branches |
-| `admin` | Branch-level full access (acts as Manager) |
-| `doctor` | Legacy — will be repurposed or removed |
-| `receptionist` | Legacy — will be repurposed or removed |
-| `billing_staff` | Legacy — will be repurposed or removed |
-| `pharmacist` | Legacy — will be repurposed or removed |
-
-> The role enum in the DB will be updated to reflect RMP-specific roles (e.g. `manager`, `employee`) as the schema evolves.
+| `admin` | Branch-level full access — acts as Manager |
+| `manager` | Manages employees within a branch; views and approves attendance and payroll |
+| `employee` | Punches in/out via mobile app; views own attendance and salary summary |
 
 ## Tech Stack
 
@@ -60,9 +56,6 @@ internal/
     auth/                   ← Login, token refresh (handler / service / repo / dto)
     admin/                  ← Branch, user, menu, role-permission CRUD (super_admin only)
     myprofile/              ← Authenticated user: update profile, change password, get menus
-    patient/                ← Legacy — will be replaced by employee module
-    billing/                ← Legacy — will be replaced by payroll module
-    appointment/            ← Legacy — will be replaced by attendance/shift module
   models/                   ← DB struct types
   router/router.go          ← All routes registered here
   server/server.go          ← HTTP server setup
@@ -85,12 +78,11 @@ Protected routes additionally require a `Authorization: Bearer <jwt>` header.
 - `POST /auth/refresh`
 
 ### Authenticated
-- `GET/POST/PUT/DELETE /patients` — legacy, will become `/employees`
-- `GET/POST/PUT /billing` — legacy, will become `/payroll`
-- `GET/POST/PUT /appointments` — legacy, will become `/attendance`
 - `PUT /profile/me`
 - `PATCH /profile/me/password`
 - `GET /menus/me`
+
+> Planned: `/employees`, `/attendance`, `/payroll` — to be added as RMP modules.
 
 ### Admin only (`super_admin` role)
 - `/admin/branches` — CRUD
@@ -109,7 +101,7 @@ repository.go   ← Raw SQL queries against pgxpool
 dto.go          ← Request/Response structs with validation tags
 ```
 
-New modules (e.g. `attendance`, `payroll`, `employee`) must follow this same pattern.
+All new modules (`attendance`, `payroll`, `employee`, etc.) must follow this same pattern.
 
 ## Development
 
