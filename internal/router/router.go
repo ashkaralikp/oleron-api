@@ -8,6 +8,8 @@ import (
 	"rmp-api/internal/modules/admin"
 	"rmp-api/internal/modules/auth"
 	"rmp-api/internal/modules/myprofile"
+	"rmp-api/internal/modules/reports"
+	"rmp-api/internal/modules/schedule"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -44,6 +46,25 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 
 			profileHandler := myprofile.NewHandler(db)
 			adminHandler := admin.NewHandler(db)
+			reportsHandler := reports.NewHandler(db)
+			scheduleHandler := schedule.NewHandler(db)
+
+			// Schedule routes (super_admin, admin, manager)
+			r.Route("/schedule/office-timings", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/", scheduleHandler.GetAll)
+				r.Post("/", scheduleHandler.Create)
+				r.Get("/{id}", scheduleHandler.GetByID)
+				r.Put("/{id}", scheduleHandler.Update)
+				r.Delete("/{id}", scheduleHandler.Delete)
+				r.Put("/{id}/activate", scheduleHandler.Activate)
+			})
+
+			// Reports routes (super_admin, admin, manager)
+			r.Route("/reports", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/attendance", reportsHandler.GetAttendanceReport)
+			})
 
 			// Employee routes (super_admin, admin, manager)
 			r.Route("/employees", func(r chi.Router) {

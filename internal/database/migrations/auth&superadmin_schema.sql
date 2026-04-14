@@ -36,6 +36,7 @@ CREATE TYPE token_type AS ENUM (
 -- ============================================
 CREATE TABLE branches (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    office_timing_id UUID REFERENCES office_timings(id) ON DELETE SET NULL,
     name            VARCHAR(150) NOT NULL,
     code            VARCHAR(20) NOT NULL UNIQUE,  -- e.g. BRANCH01 (used in mobile app)
     address         TEXT,
@@ -156,6 +157,54 @@ CREATE TABLE employees (
 
 
 -- ============================================
+-- OFFICE TIMINGS TABLE
+-- Weekly work schedule assigned to a branch
+-- ============================================
+CREATE TABLE office_timings (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id       UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+    name            VARCHAR(100) NOT NULL,          -- e.g. "Standard Week", "Night Shift"
+    is_active       BOOLEAN DEFAULT TRUE,           -- only one active timing per branch recommended
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- OFFICE TIMING DAYS TABLE
+-- Per-day schedule for each office timing
+-- ============================================
+CREATE TABLE office_timing_days (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    office_timing_id  UUID NOT NULL REFERENCES office_timings(id) ON DELETE CASCADE,
+    day_of_week       SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6), -- 0=Sun, 1=Mon, ..., 6=Sat
+    is_working_day    BOOLEAN DEFAULT TRUE,
+    start_time        TIME,                         -- e.g. 09:00:00
+    end_time          TIME,                         -- e.g. 18:00:00
+    break_minutes     SMALLINT DEFAULT 0,           -- break duration in minutes
+    UNIQUE(office_timing_id, day_of_week)           -- one entry per day per timing
+);
+
+
+-- ============================================
+-- ATTENDANCE TABLE
+-- Employee punch-in / punch-out records
+-- ============================================
+CREATE TABLE attendance (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,  -- branch_id derived via users.branch_id
+    work_date       DATE NOT NULL,
+    punch_in        TIMESTAMPTZ,
+    punch_out       TIMESTAMPTZ,
+    work_hours      NUMERIC(5,2),                  -- computed on punch-out: (punch_out - punch_in) in hours
+    status          VARCHAR(20) DEFAULT 'present', -- present, absent, half_day, late, on_leave
+    notes           TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, work_date)                     -- one record per user per day
+);
+
+
+-- ============================================
 -- MENUS TABLE
 -- Sidebar/navigation menus with tree structure
 -- ============================================
@@ -203,6 +252,16 @@ CREATE INDEX idx_employees_branch_id ON employees(branch_id);
 CREATE INDEX idx_employees_manager_id ON employees(manager_id);
 CREATE INDEX idx_employees_employee_code ON employees(employee_code);
 
+-- Office timings
+CREATE INDEX idx_office_timings_branch_id ON office_timings(branch_id);
+CREATE INDEX idx_office_timings_is_active ON office_timings(is_active);
+CREATE INDEX idx_office_timing_days_timing_id ON office_timing_days(office_timing_id);
+
+-- Attendance
+CREATE INDEX idx_attendance_user_id ON attendance(user_id);
+CREATE INDEX idx_attendance_work_date ON attendance(work_date);
+CREATE INDEX idx_attendance_status ON attendance(status);
+
 -- Branches
 CREATE INDEX idx_branches_code ON branches(code);
 
@@ -234,6 +293,14 @@ CREATE TRIGGER trg_branches_updated_at
 
 CREATE TRIGGER trg_employees_updated_at
     BEFORE UPDATE ON employees
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_office_timings_updated_at
+    BEFORE UPDATE ON office_timings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_attendance_updated_at
+    BEFORE UPDATE ON attendance
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER trg_menus_updated_at
@@ -321,7 +388,7 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 -- SCHEMA OVERVIEW
 -- ============================================
 --
--- branches          → Each organization branch (identified by code e.g. BRANCH01)
+-- branches          → Each organization branch (identified by code e.g. BRANCH01, office_timing_id → active schedule)
 --     │
 --     └── users     → Staff accounts linked to a branch
 --             │
