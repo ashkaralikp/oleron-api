@@ -597,6 +597,7 @@ curl -X GET http://localhost:8080/api/v1/employees \
       "designation": "Software Engineer",
       "employment_type": "full_time",
       "hourly_rate": 25.00,
+      "currency": "USD",
       "joining_date": "2026-01-15T00:00:00Z",
       "first_name": "Jane",
       "last_name": "Smith",
@@ -640,6 +641,7 @@ curl -X GET http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "designation": "Software Engineer",
     "employment_type": "full_time",
     "hourly_rate": 25.00,
+    "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",
     "last_name": "Smith",
@@ -687,6 +689,7 @@ POST /api/v1/employees
 | `designation`     | string | ❌       | Job title (e.g. `"Software Engineer"`)                   |
 | `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
 | `hourly_rate`     | number | ❌       | Hourly rate used for salary calculation                  |
+| `currency`        | string | ❌       | 3-letter currency code (default: `USD`). e.g. `USD`, `INR`, `EUR`  |
 
 #### cURL
 
@@ -706,6 +709,7 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "designation": "Software Engineer",
     "employment_type": "full_time",
     "hourly_rate": 25.00,
+    "currency": "INR",
     "joining_date": "2026-01-15",
     "phone": "+1122334455"
   }'
@@ -725,6 +729,7 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "designation": "Software Engineer",
     "employment_type": "full_time",
     "hourly_rate": 25.00,
+    "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",
     "last_name": "Smith",
@@ -768,6 +773,7 @@ PUT /api/v1/employees/{id}
 | `designation`     | string | ❌       | Updated job title                                                    |
 | `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract`                         |
 | `hourly_rate`     | number | ❌       | Updated hourly rate                                                  |
+| `currency`        | string | ❌       | 3-letter currency code. e.g. `USD`, `INR`, `EUR`                    |
 
 #### cURL
 
@@ -797,6 +803,7 @@ curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "designation": "Senior Software Engineer",
     "employment_type": "full_time",
     "hourly_rate": 30.00,
+    "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",
     "last_name": "Smith",

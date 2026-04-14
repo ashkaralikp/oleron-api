@@ -215,12 +215,16 @@ func (s *Service) CreateEmployee(ctx context.Context, req CreateEmployeeRequest)
 		EmployeeCode:   req.EmployeeCode,
 		EmploymentType: "full_time",
 		HourlyRate:     req.HourlyRate,
+		Currency:       "USD",
 	}
 	if req.Designation != "" {
 		e.Designation = &req.Designation
 	}
 	if req.EmploymentType != "" {
 		e.EmploymentType = req.EmploymentType
+	}
+	if req.Currency != "" {
+		e.Currency = req.Currency
 	}
 
 	joiningDate, err := parseDate(req.JoiningDate)
@@ -277,6 +281,9 @@ func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmplo
 	}
 	if req.HourlyRate != nil {
 		existing.HourlyRate = req.HourlyRate
+	}
+	if req.Currency != "" {
+		existing.Currency = req.Currency
 	}
 
 	if err := s.repo.UpdateEmployee(ctx, id, u, existing); err != nil {

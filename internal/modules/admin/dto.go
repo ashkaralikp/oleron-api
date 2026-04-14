@@ -131,6 +131,7 @@ type CreateEmployeeRequest struct {
 	Designation    string   `json:"designation"`
 	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
 	HourlyRate     *float64 `json:"hourly_rate"`
+	Currency       string   `json:"currency" validate:"omitempty,len=3"` // e.g. USD, INR, EUR
 	JoiningDate    string   `json:"joining_date" validate:"required"` // format: YYYY-MM-DD
 }
 
@@ -145,6 +146,7 @@ type UpdateEmployeeRequest struct {
 	Designation    string   `json:"designation"`
 	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
 	HourlyRate     *float64 `json:"hourly_rate"`
+	Currency       string   `json:"currency" validate:"omitempty,len=3"`
 }
 
 type EmployeeResponse struct {
@@ -156,6 +158,7 @@ type EmployeeResponse struct {
 	Designation    *string  `json:"designation,omitempty"`
 	EmploymentType string   `json:"employment_type"`
 	HourlyRate     *float64 `json:"hourly_rate,omitempty"`
+	Currency       string   `json:"currency"`
 	JoiningDate    string   `json:"joining_date"`
 	FirstName      string   `json:"first_name"`
 	LastName       string   `json:"last_name"`

@@ -11,6 +11,7 @@ type Employee struct {
 	Designation    *string    `json:"designation,omitempty"`
 	EmploymentType string     `json:"employment_type"`
 	HourlyRate     *float64   `json:"hourly_rate,omitempty"`
+	Currency       string     `json:"currency"`
 	JoiningDate    time.Time  `json:"joining_date"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
