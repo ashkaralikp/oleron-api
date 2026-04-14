@@ -15,6 +15,7 @@ type contextKey string
 
 const UserIDKey contextKey = "user_id"
 const UserRoleKey contextKey = "user_role"
+const UserBranchIDKey contextKey = "user_branch_id"
 
 func JWT(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -52,9 +53,11 @@ func JWT(cfg *config.Config) func(http.Handler) http.Handler {
 
 			userID, _ := claims["sub"].(string)
 			role, _ := claims["role"].(string)
+			branchID, _ := claims["branch_id"].(string)
 
 			ctx := context.WithValue(r.Context(), UserIDKey, userID)
 			ctx = context.WithValue(ctx, UserRoleKey, role)
+			ctx = context.WithValue(ctx, UserBranchIDKey, branchID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

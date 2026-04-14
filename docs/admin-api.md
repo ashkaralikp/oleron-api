@@ -2,10 +2,14 @@
 
 Base URL: `http://localhost:8080/api/v1/admin`
 
-> **All admin endpoints require:**
+> **All endpoints require:**
 > - `X-API-Key` header
 > - `Authorization: Bearer <access_token>` header
-> - The authenticated user must have the **`super_admin`** role
+>
+> | Route prefix | Required role |
+> |---|---|
+> | `/api/v1/admin/*` | `super_admin` only |
+> | `/api/v1/employees` | `super_admin`, `admin`, `manager` |
 
 ---
 
@@ -563,12 +567,20 @@ curl -X DELETE http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-
 
 > **Access:** `super_admin`, `admin`, `manager`
 >
-> Base path: `/api/v1/employees` (not under `/admin`)
+> **Base path:** `/api/v1/employees` — note this is **not** under `/api/v1/admin`
 >
 > Employees are operational records linked to a user account. Creating an employee creates both a `users` row (role: `employee`) and an `employees` row in a single transaction.
 > Each employee belongs to a **branch** and is assigned to a **manager**.
+> Data is automatically filtered by branch for `admin` and `manager` roles.
 
 ### 1. List All Employees
+
+> **Role-based filtering:**
+> | Role | Returns |
+> |---|---|
+> | `super_admin` | All employees across all branches |
+> | `admin` | Employees in their branch only |
+> | `manager` | Employees in their branch only |
 
 ```
 GET /api/v1/employees

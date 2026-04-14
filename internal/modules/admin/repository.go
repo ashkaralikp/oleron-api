@@ -174,15 +174,22 @@ func (r *Repository) DeleteUser(ctx context.Context, id string) error {
 // EMPLOYEE REPOSITORY
 // =============================================
 
-func (r *Repository) FindAllEmployees(ctx context.Context) ([]models.Employee, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT e.id, e.user_id, e.branch_id, e.manager_id, e.employee_code,
+func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]models.Employee, error) {
+	query := `SELECT e.id, e.user_id, e.branch_id, e.manager_id, e.employee_code,
 		        e.designation, e.employment_type, e.hourly_rate, e.currency, e.joining_date,
 		        e.created_at, e.updated_at,
 		        u.first_name, u.last_name, u.email, u.phone, u.status, u.avatar_url
 		 FROM employees e
-		 JOIN users u ON u.id = e.user_id
-		 ORDER BY e.created_at DESC`)
+		 JOIN users u ON u.id = e.user_id`
+
+	var args []any
+	if branchID != "" {
+		query += ` WHERE e.branch_id = $1`
+		args = append(args, branchID)
+	}
+	query += ` ORDER BY e.created_at DESC`
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

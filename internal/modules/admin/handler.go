@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 
 	"github.com/go-chi/chi/v5"
@@ -199,7 +200,10 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // =============================================
 
 func (h *Handler) GetAllEmployees(w http.ResponseWriter, r *http.Request) {
-	employees, err := h.service.GetAllEmployees(r.Context())
+	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+
+	employees, err := h.service.GetAllEmployees(r.Context(), role, branchID)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch employees")
 		return
