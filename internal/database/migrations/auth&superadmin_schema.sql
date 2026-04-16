@@ -187,6 +187,27 @@ CREATE TABLE office_timing_days (
 
 
 -- ============================================
+-- BRANCH CALENDAR TABLE
+-- Per-branch overrides to the weekly schedule for a given date
+-- Used to mark public holidays, branch closures, or makeup working days
+-- ============================================
+CREATE TYPE calendar_day_type AS ENUM (
+    'holiday',      -- non-working: public holiday, branch closure, etc.
+    'working_day'   -- override: this date is a working day (e.g. makeup Saturday)
+);
+
+CREATE TABLE branch_calendar (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id   UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+    date        DATE NOT NULL,
+    type        calendar_day_type NOT NULL,
+    name        VARCHAR(150),             -- e.g. "Christmas Day", "Makeup Saturday"
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(branch_id, date)               -- one entry per branch per date
+);
+
+
+-- ============================================
 -- ATTENDANCE TABLE
 -- Employee punch-in / punch-out records
 -- ============================================
@@ -258,6 +279,10 @@ CREATE INDEX idx_employees_employee_code ON employees(employee_code);
 CREATE INDEX idx_office_timings_branch_id ON office_timings(branch_id);
 CREATE INDEX idx_office_timings_is_active ON office_timings(is_active);
 CREATE INDEX idx_office_timing_days_timing_id ON office_timing_days(office_timing_id);
+
+-- Branch calendar
+CREATE INDEX idx_branch_calendar_branch_id ON branch_calendar(branch_id);
+CREATE INDEX idx_branch_calendar_date ON branch_calendar(date);
 
 -- Attendance
 CREATE INDEX idx_attendance_user_id ON attendance(user_id);
@@ -392,10 +417,11 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 --
 -- branches          → Each organization branch (identified by code e.g. BRANCH01, office_timing_id → active schedule)
 --     │
---     └── users     → Staff accounts linked to a branch
+--     ├── branch_calendar → Per-date holiday/working-day overrides for payroll
+--     └── users           → Staff accounts linked to a branch
 --             │
---             ├── tokens    → Reset password / email verify tokens
---             ├── sessions  → Active login sessions (per device)
+--             ├── tokens      → Reset password / email verify tokens
+--             ├── sessions    → Active login sessions (per device)
 --             └── login_audit → All login attempts logged
 --
 -- role_permissions  → What each role (super_admin/admin/manager/employee) can do per resource

@@ -7,6 +7,7 @@ import (
 	"rmp-api/internal/middleware"
 	"rmp-api/internal/modules/admin"
 	"rmp-api/internal/modules/auth"
+	"rmp-api/internal/modules/calendar"
 	"rmp-api/internal/modules/myprofile"
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
@@ -48,6 +49,17 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			adminHandler := admin.NewHandler(db)
 			reportsHandler := reports.NewHandler(db)
 			scheduleHandler := schedule.NewHandler(db)
+			calendarHandler := calendar.NewHandler(db)
+
+			// Calendar routes (super_admin, admin, manager)
+			r.Route("/calendar/branch-calendar", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/", calendarHandler.GetAll)
+				r.Post("/", calendarHandler.Create)
+				r.Get("/{id}", calendarHandler.GetByID)
+				r.Put("/{id}", calendarHandler.Update)
+				r.Delete("/{id}", calendarHandler.Delete)
+			})
 
 			// Schedule routes (super_admin, admin, manager)
 			r.Route("/schedule/office-timings", func(r chi.Router) {
