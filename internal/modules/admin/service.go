@@ -215,6 +215,7 @@ func (s *Service) CreateEmployee(ctx context.Context, req CreateEmployeeRequest)
 
 	e := &models.Employee{
 		BranchID:       req.BranchID,
+		OfficeTimingID: req.OfficeTimingID,
 		ManagerID:      req.ManagerID,
 		EmployeeCode:   req.EmployeeCode,
 		EmploymentType: "full_time",
@@ -274,6 +275,9 @@ func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmplo
 		u.Status = req.Status
 	}
 
+	if req.OfficeTimingID != nil {
+		existing.OfficeTimingID = req.OfficeTimingID
+	}
 	if req.ManagerID != nil {
 		existing.ManagerID = req.ManagerID
 	}

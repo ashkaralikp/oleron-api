@@ -144,6 +144,7 @@ CREATE TABLE employees (
     id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id          UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     branch_id        UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    office_timing_id UUID REFERENCES office_timings(id) ON DELETE SET NULL,  -- overrides branch default timing; NULL = use branch timing
     manager_id       UUID REFERENCES users(id) ON DELETE SET NULL,  -- manager of this employee
     employee_code    VARCHAR(20) NOT NULL UNIQUE,                   -- used for mobile punch-in/out
     designation      VARCHAR(100),
@@ -249,6 +250,7 @@ CREATE INDEX idx_login_audit_created_at ON login_audit(created_at);
 -- Employees
 CREATE INDEX idx_employees_user_id ON employees(user_id);
 CREATE INDEX idx_employees_branch_id ON employees(branch_id);
+CREATE INDEX idx_employees_office_timing_id ON employees(office_timing_id);
 CREATE INDEX idx_employees_manager_id ON employees(manager_id);
 CREATE INDEX idx_employees_employee_code ON employees(employee_code);
 

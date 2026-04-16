@@ -5,8 +5,9 @@ import "time"
 type Employee struct {
 	ID             string     `json:"id"`
 	UserID         string     `json:"user_id"`
-	BranchID       string     `json:"branch_id"`
-	ManagerID      *string    `json:"manager_id,omitempty"`
+	BranchID        string     `json:"branch_id"`
+	OfficeTimingID  *string    `json:"office_timing_id,omitempty"`
+	ManagerID       *string    `json:"manager_id,omitempty"`
 	EmployeeCode   string     `json:"employee_code"`
 	Designation    *string    `json:"designation,omitempty"`
 	EmploymentType string     `json:"employment_type"`

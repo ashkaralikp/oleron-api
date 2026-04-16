@@ -175,7 +175,7 @@ func (r *Repository) DeleteUser(ctx context.Context, id string) error {
 // =============================================
 
 func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]models.Employee, error) {
-	query := `SELECT e.id, e.user_id, e.branch_id, e.manager_id, e.employee_code,
+	query := `SELECT e.id, e.user_id, e.branch_id, e.office_timing_id, e.manager_id, e.employee_code,
 		        e.designation, e.employment_type, e.hourly_rate, e.currency, e.joining_date,
 		        e.created_at, e.updated_at,
 		        u.first_name, u.last_name, u.email, u.phone, u.status, u.avatar_url
@@ -199,7 +199,7 @@ func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]m
 	for rows.Next() {
 		var e models.Employee
 		err := rows.Scan(
-			&e.ID, &e.UserID, &e.BranchID, &e.ManagerID, &e.EmployeeCode,
+			&e.ID, &e.UserID, &e.BranchID, &e.OfficeTimingID, &e.ManagerID, &e.EmployeeCode,
 			&e.Designation, &e.EmploymentType, &e.HourlyRate, &e.Currency, &e.JoiningDate,
 			&e.CreatedAt, &e.UpdatedAt,
 			&e.FirstName, &e.LastName, &e.Email, &e.Phone, &e.Status, &e.AvatarURL,
@@ -215,7 +215,7 @@ func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]m
 func (r *Repository) FindEmployeeByID(ctx context.Context, id string) (*models.Employee, error) {
 	var e models.Employee
 	err := r.db.QueryRow(ctx,
-		`SELECT e.id, e.user_id, e.branch_id, e.manager_id, e.employee_code,
+		`SELECT e.id, e.user_id, e.branch_id, e.office_timing_id, e.manager_id, e.employee_code,
 		        e.designation, e.employment_type, e.hourly_rate, e.currency, e.joining_date,
 		        e.created_at, e.updated_at,
 		        u.first_name, u.last_name, u.email, u.phone, u.status, u.avatar_url
@@ -223,7 +223,7 @@ func (r *Repository) FindEmployeeByID(ctx context.Context, id string) (*models.E
 		 JOIN users u ON u.id = e.user_id
 		 WHERE e.id = $1`, id,
 	).Scan(
-		&e.ID, &e.UserID, &e.BranchID, &e.ManagerID, &e.EmployeeCode,
+		&e.ID, &e.UserID, &e.BranchID, &e.OfficeTimingID, &e.ManagerID, &e.EmployeeCode,
 		&e.Designation, &e.EmploymentType, &e.HourlyRate, &e.Currency, &e.JoiningDate,
 		&e.CreatedAt, &e.UpdatedAt,
 		&e.FirstName, &e.LastName, &e.Email, &e.Phone, &e.Status, &e.AvatarURL,
@@ -255,10 +255,10 @@ func (r *Repository) CreateEmployee(ctx context.Context, u *models.User, e *mode
 
 	// Create employee profile
 	err = tx.QueryRow(ctx,
-		`INSERT INTO employees (user_id, branch_id, manager_id, employee_code, designation, employment_type, hourly_rate, currency, joining_date)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`INSERT INTO employees (user_id, branch_id, office_timing_id, manager_id, employee_code, designation, employment_type, hourly_rate, currency, joining_date)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 RETURNING id, created_at, updated_at`,
-		u.ID, e.BranchID, e.ManagerID, e.EmployeeCode,
+		u.ID, e.BranchID, e.OfficeTimingID, e.ManagerID, e.EmployeeCode,
 		e.Designation, e.EmploymentType, e.HourlyRate, e.Currency, e.JoiningDate,
 	).Scan(&e.ID, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
@@ -286,9 +286,9 @@ func (r *Repository) UpdateEmployee(ctx context.Context, id string, u *models.Us
 
 	_, err = tx.Exec(ctx,
 		`UPDATE employees
-		 SET manager_id = $2, designation = $3, employment_type = $4, hourly_rate = $5, currency = $6
+		 SET office_timing_id = $2, manager_id = $3, designation = $4, employment_type = $5, hourly_rate = $6, currency = $7
 		 WHERE id = $1`,
-		id, e.ManagerID, e.Designation, e.EmploymentType, e.HourlyRate, e.Currency,
+		id, e.OfficeTimingID, e.ManagerID, e.Designation, e.EmploymentType, e.HourlyRate, e.Currency,
 	)
 	if err != nil {
 		return err

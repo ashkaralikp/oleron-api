@@ -604,6 +604,7 @@ curl -X GET http://localhost:8080/api/v1/employees \
       "id": "ee0e8400-e29b-41d4-a716-446655440001",
       "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
       "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+      "office_timing_id": "aa0e8400-e29b-41d4-a716-446655440001",
       "manager_id": "880e8400-e29b-41d4-a716-446655440002",
       "employee_code": "EMP001",
       "designation": "Software Engineer",
@@ -648,6 +649,7 @@ curl -X GET http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "id": "ee0e8400-e29b-41d4-a716-446655440001",
     "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
     "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "office_timing_id": "aa0e8400-e29b-41d4-a716-446655440001",
     "manager_id": "880e8400-e29b-41d4-a716-446655440002",
     "employee_code": "EMP001",
     "designation": "Software Engineer",
@@ -696,12 +698,13 @@ POST /api/v1/employees
 | `branch_id`       | string | ✅       | UUID of the branch this employee belongs to              |
 | `employee_code`   | string | ✅       | Unique code used for mobile punch-in/out (e.g. `EMP001`) |
 | `joining_date`    | string | ✅       | Date in `YYYY-MM-DD` format                              |
-| `phone`           | string | ❌       | Contact phone number                                     |
-| `manager_id`      | string | ❌       | UUID of the manager (must have `manager` role)           |
-| `designation`     | string | ❌       | Job title (e.g. `"Software Engineer"`)                   |
-| `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
-| `hourly_rate`     | number | ❌       | Hourly rate used for salary calculation                  |
-| `currency`        | string | ❌       | 3-letter currency code (default: `USD`). e.g. `USD`, `INR`, `EUR`  |
+| `phone`             | string | ❌       | Contact phone number                                     |
+| `office_timing_id`  | string | ❌       | UUID of the employee's office timing (overrides branch default; `null` = use branch timing) |
+| `manager_id`        | string | ❌       | UUID of the manager (must have `manager` role)           |
+| `designation`       | string | ❌       | Job title (e.g. `"Software Engineer"`)                   |
+| `employment_type`   | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
+| `hourly_rate`       | number | ❌       | Hourly rate used for salary calculation                  |
+| `currency`          | string | ❌       | 3-letter currency code (default: `USD`). e.g. `USD`, `INR`, `EUR`  |
 
 #### cURL
 
@@ -716,6 +719,7 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "email": "jane.smith@oleron.com",
     "password": "SecurePass123",
     "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "office_timing_id": "aa0e8400-e29b-41d4-a716-446655440001",
     "manager_id": "880e8400-e29b-41d4-a716-446655440002",
     "employee_code": "EMP001",
     "designation": "Software Engineer",
@@ -736,6 +740,7 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "id": "ee0e8400-e29b-41d4-a716-446655440001",
     "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
     "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "office_timing_id": "aa0e8400-e29b-41d4-a716-446655440001",
     "manager_id": "880e8400-e29b-41d4-a716-446655440002",
     "employee_code": "EMP001",
     "designation": "Software Engineer",
@@ -781,11 +786,12 @@ PUT /api/v1/employees/{id}
 | `last_name`       | string | ❌       | Updated last name                                                    |
 | `phone`           | string | ❌       | Updated phone number                                                 |
 | `status`          | string | ❌       | One of: `active`, `inactive`, `suspended`, `pending`                 |
-| `manager_id`      | string | ❌       | Reassign to a different manager                                      |
-| `designation`     | string | ❌       | Updated job title                                                    |
-| `employment_type` | string | ❌       | One of: `full_time`, `part_time`, `contract`                         |
-| `hourly_rate`     | number | ❌       | Updated hourly rate                                                  |
-| `currency`        | string | ❌       | 3-letter currency code. e.g. `USD`, `INR`, `EUR`                    |
+| `office_timing_id`  | string | ❌       | Reassign to a different office timing (or `null` to fall back to branch timing) |
+| `manager_id`        | string | ❌       | Reassign to a different manager                                      |
+| `designation`       | string | ❌       | Updated job title                                                    |
+| `employment_type`   | string | ❌       | One of: `full_time`, `part_time`, `contract`                         |
+| `hourly_rate`       | number | ❌       | Updated hourly rate                                                  |
+| `currency`          | string | ❌       | 3-letter currency code. e.g. `USD`, `INR`, `EUR`                    |
 
 #### cURL
 
@@ -810,6 +816,7 @@ curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "id": "ee0e8400-e29b-41d4-a716-446655440001",
     "user_id": "ff0e8400-e29b-41d4-a716-446655440001",
     "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "office_timing_id": "aa0e8400-e29b-41d4-a716-446655440001",
     "manager_id": "880e8400-e29b-41d4-a716-446655440002",
     "employee_code": "EMP001",
     "designation": "Senior Software Engineer",

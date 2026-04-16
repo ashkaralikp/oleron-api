@@ -125,8 +125,9 @@ type CreateEmployeeRequest struct {
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required,min=6"`
 	// Employee profile fields
-	BranchID       string   `json:"branch_id" validate:"required"`
-	ManagerID      *string  `json:"manager_id"`
+	BranchID        string   `json:"branch_id" validate:"required"`
+	OfficeTimingID  *string  `json:"office_timing_id"`
+	ManagerID       *string  `json:"manager_id"`
 	EmployeeCode   string   `json:"employee_code" validate:"required"`
 	Designation    string   `json:"designation"`
 	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
@@ -142,7 +143,8 @@ type UpdateEmployeeRequest struct {
 	Phone     string `json:"phone"`
 	Status    string `json:"status" validate:"omitempty,oneof=active inactive suspended pending"`
 	// Employee fields
-	ManagerID      *string  `json:"manager_id"`
+	OfficeTimingID  *string  `json:"office_timing_id"`
+	ManagerID       *string  `json:"manager_id"`
 	Designation    string   `json:"designation"`
 	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
 	HourlyRate     *float64 `json:"hourly_rate"`
@@ -152,8 +154,9 @@ type UpdateEmployeeRequest struct {
 type EmployeeResponse struct {
 	ID             string   `json:"id"`
 	UserID         string   `json:"user_id"`
-	BranchID       string   `json:"branch_id"`
-	ManagerID      *string  `json:"manager_id,omitempty"`
+	BranchID        string   `json:"branch_id"`
+	OfficeTimingID  *string  `json:"office_timing_id,omitempty"`
+	ManagerID       *string  `json:"manager_id,omitempty"`
 	EmployeeCode   string   `json:"employee_code"`
 	Designation    *string  `json:"designation,omitempty"`
 	EmploymentType string   `json:"employment_type"`
