@@ -29,6 +29,16 @@ CREATE TYPE token_type AS ENUM (
     'email_verify'
 );
 
+CREATE TYPE attendance_status AS ENUM (
+    'present',            -- Punched in on time, punched out at regular time
+    'absent',             -- No punch-in recorded for the day
+    'half_day',           -- Worked less than half of expected hours
+    'late_in',            -- Punched in after expected start time
+    'early_out',          -- Punched out before expected end time
+    'late_in_early_out',  -- Both late punch-in AND early punch-out
+    'on_leave'            -- Employee was on approved leave
+);
+
 
 -- ============================================
 -- BRANCHES TABLE
@@ -218,7 +228,7 @@ CREATE TABLE attendance (
     punch_in        TIMESTAMPTZ,
     punch_out       TIMESTAMPTZ,
     work_hours      NUMERIC(5,2),                  -- computed on punch-out: (punch_out - punch_in) in hours
-    status          VARCHAR(20) DEFAULT 'present', -- present, absent, half_day, late, on_leave
+    status          attendance_status NOT NULL DEFAULT 'absent', -- set to absent on record creation; updated on punch_in/punch_out
     notes           TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW(),

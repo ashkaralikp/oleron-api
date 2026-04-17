@@ -46,7 +46,7 @@ GET /api/v1/reports/attendance
 | `date_from` | string | ❌       | Start date filter in `YYYY-MM-DD` format                                  |
 | `date_to`   | string | ❌       | End date filter in `YYYY-MM-DD` format                                    |
 | `user_id`   | string | ❌       | Filter by a specific employee's user UUID                                 |
-| `status`    | string | ❌       | One of: `present`, `absent`, `half_day`, `late`, `on_leave`               |
+| `status`    | string | ❌       | One of: `present`, `absent`, `half_day`, `late_in`, `early_out`, `late_in_early_out`, `on_leave` |
 
 #### cURL — All attendance for current branch
 
@@ -200,13 +200,15 @@ curl -X GET "http://localhost:8080/api/v1/reports/attendance?user_id=ff0e8400-e2
 
 ## Attendance Status Values
 
-| Status      | Description                                      |
-|------------|--------------------------------------------------|
-| `present`   | Employee punched in on time                      |
-| `absent`    | No punch-in recorded for the day                 |
-| `half_day`  | Employee worked less than the expected half shift |
-| `late`      | Employee punched in after the expected start time |
-| `on_leave`  | Employee was on approved leave                   |
+| Status | Set when |
+|---|---|
+| `present` | Punched in on time and punched out at regular time |
+| `absent` | No punch-in recorded for the day (default until punch-in) |
+| `half_day` | Worked less than half of expected hours |
+| `late_in` | Punched in after the expected start time |
+| `early_out` | Punched out before the expected end time |
+| `late_in_early_out` | Both late punch-in and early punch-out |
+| `on_leave` | Employee was on approved leave |
 
 ---
 
