@@ -479,6 +479,113 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 
 
 -- ============================================
+-- RECRUITMENT MODULE
+-- vacancies    → open job positions per branch
+-- applications → candidates who applied to a vacancy
+-- interviews   → interview sessions for shortlisted candidates
+-- ============================================
+
+CREATE TYPE vacancy_status AS ENUM (
+    'draft',      -- Not yet published
+    'open',       -- Accepting applications
+    'closed',     -- Position filled or stopped
+    'cancelled'   -- Cancelled before filling
+);
+
+CREATE TYPE application_status AS ENUM (
+    'applied',              -- Just submitted
+    'shortlisted',          -- CV reviewed and shortlisted
+    'rejected',             -- Not proceeding
+    'interview_scheduled',  -- Interview booked
+    'hired',                -- Converted to employee
+    'withdrawn'             -- Candidate withdrew
+);
+
+CREATE TYPE interview_type AS ENUM (
+    'phone',
+    'video',
+    'in_person'
+);
+
+CREATE TYPE interview_outcome AS ENUM (
+    'pending',   -- Not yet held
+    'passed',    -- Candidate progressed
+    'failed',    -- Did not pass
+    'no_show'    -- Candidate did not appear
+);
+
+-- Job postings per branch
+CREATE TABLE vacancies (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id       UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    created_by      UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    title           VARCHAR(150) NOT NULL,                -- e.g. "Senior Developer"
+    department      VARCHAR(100),                         -- e.g. "Engineering"
+    description     TEXT,                                 -- Full job description / JD
+    requirements    TEXT,                                 -- Skills, qualifications
+    positions       SMALLINT NOT NULL DEFAULT 1,          -- Number of openings
+    status          vacancy_status NOT NULL DEFAULT 'draft',
+    deadline        DATE,                                 -- Application deadline (optional)
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Candidate applications
+CREATE TABLE applications (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vacancy_id      UUID NOT NULL REFERENCES vacancies(id) ON DELETE CASCADE,
+    first_name      VARCHAR(100) NOT NULL,
+    last_name       VARCHAR(100) NOT NULL,
+    email           VARCHAR(150) NOT NULL,
+    phone           VARCHAR(20),
+    cv_url          TEXT,                                 -- Link to uploaded CV/resume
+    cover_letter    TEXT,
+    status          application_status NOT NULL DEFAULT 'applied',
+    notes           TEXT,                                 -- Reviewer notes / sorting comments
+    applied_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Interview sessions for shortlisted candidates
+CREATE TABLE interviews (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    application_id  UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    interviewer_id  UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,  -- branch user conducting interview
+    scheduled_at    TIMESTAMPTZ NOT NULL,
+    type            interview_type NOT NULL DEFAULT 'in_person',
+    location        VARCHAR(200),    -- room name, address, or video link
+    outcome         interview_outcome NOT NULL DEFAULT 'pending',
+    feedback        TEXT,            -- interviewer feedback after the session
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- Recruitment indexes
+CREATE INDEX idx_vacancies_branch_id ON vacancies(branch_id);
+CREATE INDEX idx_vacancies_status ON vacancies(status);
+CREATE INDEX idx_applications_vacancy_id ON applications(vacancy_id);
+CREATE INDEX idx_applications_status ON applications(status);
+CREATE INDEX idx_applications_email ON applications(email);
+CREATE INDEX idx_interviews_application_id ON interviews(application_id);
+CREATE INDEX idx_interviews_interviewer_id ON interviews(interviewer_id);
+CREATE INDEX idx_interviews_scheduled_at ON interviews(scheduled_at);
+
+-- updated_at triggers for recruitment
+CREATE TRIGGER trg_vacancies_updated_at
+    BEFORE UPDATE ON vacancies
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_applications_updated_at
+    BEFORE UPDATE ON applications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_interviews_updated_at
+    BEFORE UPDATE ON interviews
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
+-- ============================================
 -- SCHEMA OVERVIEW
 -- ============================================
 --
@@ -493,3 +600,9 @@ INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 --
 -- role_permissions  → What each role (super_admin/admin/manager/employee) can do per resource
 -- menus             → Sidebar navigation with tree structure (filtered by role_permissions)
+--
+-- vacancies         → Job postings per branch (title, JD, openings, status)
+--     └── applications → Candidates who applied (CV, status: applied → shortlisted → hired/rejected)
+--             └── interviews → Scheduled interview sessions (type, outcome, feedback)
+--
+-- Hire flow: vacancy(open) → application(applied) → (shortlisted) → interview(scheduled) → application(hired) → create user+employee

@@ -11,6 +11,7 @@ import (
 	"rmp-api/internal/modules/calendar"
 	"rmp-api/internal/modules/myprofile"
 	"rmp-api/internal/modules/payroll"
+	"rmp-api/internal/modules/recruitment"
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
 
@@ -40,6 +41,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.Use(middleware.APIKey(cfg))
 			r.Post("/auth/login", auth.NewHandler(db, cfg.JWTSecret).Login)
 			r.Post("/auth/refresh", auth.NewHandler(db, cfg.JWTSecret).Refresh)
+			// Public recruitment: candidates apply without a JWT
+			recruitmentHandlerPublic := recruitment.NewHandler(db)
+			r.Post("/recruitment/vacancies/{id}/apply", recruitmentHandlerPublic.Apply)
 		})
 
 		// Protected routes (JWT required)
@@ -54,6 +58,29 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			calendarHandler := calendar.NewHandler(db)
 			attendanceHandler := attendance.NewHandler(db)
 			payrollHandler := payroll.NewHandler(db)
+			recruitmentHandler := recruitment.NewHandler(db)
+
+			// Recruitment routes (super_admin, admin, manager)
+			r.Route("/recruitment", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				// Vacancies
+				r.Get("/vacancies", recruitmentHandler.GetAllVacancies)
+				r.Post("/vacancies", recruitmentHandler.CreateVacancy)
+				r.Get("/vacancies/{id}", recruitmentHandler.GetVacancyByID)
+				r.Put("/vacancies/{id}", recruitmentHandler.UpdateVacancy)
+				r.Patch("/vacancies/{id}/status", recruitmentHandler.UpdateVacancyStatus)
+				r.Delete("/vacancies/{id}", recruitmentHandler.DeleteVacancy)
+				// Applications
+				r.Get("/vacancies/{id}/applications", recruitmentHandler.GetApplicationsByVacancy)
+				r.Get("/applications/{id}", recruitmentHandler.GetApplicationByID)
+				r.Patch("/applications/{id}/status", recruitmentHandler.UpdateApplicationStatus)
+				r.Delete("/applications/{id}", recruitmentHandler.DeleteApplication)
+				r.Post("/applications/{id}/interviews", recruitmentHandler.CreateInterview)
+				r.Post("/applications/{id}/hire", recruitmentHandler.Hire)
+				// Interviews
+				r.Put("/interviews/{id}", recruitmentHandler.UpdateInterview)
+				r.Delete("/interviews/{id}", recruitmentHandler.DeleteInterview)
+			})
 
 			// Payroll routes (super_admin, admin, manager)
 			r.Route("/payroll", func(r chi.Router) {
