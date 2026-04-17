@@ -10,6 +10,7 @@ import (
 	"rmp-api/internal/modules/auth"
 	"rmp-api/internal/modules/calendar"
 	"rmp-api/internal/modules/myprofile"
+	"rmp-api/internal/modules/payroll"
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
 
@@ -52,6 +53,17 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			scheduleHandler := schedule.NewHandler(db)
 			calendarHandler := calendar.NewHandler(db)
 			attendanceHandler := attendance.NewHandler(db)
+			payrollHandler := payroll.NewHandler(db)
+
+			// Payroll routes (super_admin, admin, manager)
+			r.Route("/payroll", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/", payrollHandler.GetAll)
+				r.Post("/generate", payrollHandler.Generate)
+				r.Get("/{id}", payrollHandler.GetByID)
+				r.Patch("/{id}/status", payrollHandler.UpdateStatus)
+				r.Delete("/{id}", payrollHandler.Delete)
+			})
 
 			// Attendance routes (all authenticated roles)
 			r.Route("/attendance", func(r chi.Router) {

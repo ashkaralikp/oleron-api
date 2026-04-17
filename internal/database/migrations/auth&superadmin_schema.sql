@@ -237,6 +237,52 @@ CREATE TABLE attendance (
 
 
 -- ============================================
+-- PAYROLL TABLES
+-- payroll_runs  → one record per branch per pay period
+-- payroll_items → one record per employee per run
+-- ============================================
+CREATE TYPE payroll_status AS ENUM (
+    'draft',    -- Generated, not yet finalised
+    'approved', -- Approved by admin/manager
+    'paid'      -- Payment processed
+);
+
+CREATE TABLE payroll_runs (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id       UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    period_from     DATE NOT NULL,
+    period_to       DATE NOT NULL,
+    generated_by    UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    status          payroll_status NOT NULL DEFAULT 'draft',
+    total_amount    NUMERIC(12,2) NOT NULL DEFAULT 0,
+    currency        VARCHAR(3) NOT NULL DEFAULT 'USD',
+    notes           TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(branch_id, period_from, period_to)   -- prevent duplicate run for the same period
+);
+
+CREATE TABLE payroll_items (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payroll_run_id  UUID NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+    employee_id     UUID NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    working_days    SMALLINT NOT NULL DEFAULT 0,    -- expected working days in the period
+    present_days    SMALLINT NOT NULL DEFAULT 0,
+    absent_days     SMALLINT NOT NULL DEFAULT 0,
+    leave_days      SMALLINT NOT NULL DEFAULT 0,
+    total_hours     NUMERIC(8,2) NOT NULL DEFAULT 0,
+    hourly_rate     NUMERIC(10,2) NOT NULL,
+    currency        VARCHAR(3) NOT NULL DEFAULT 'USD',
+    gross_pay       NUMERIC(12,2) NOT NULL DEFAULT 0,
+    deductions      NUMERIC(12,2) NOT NULL DEFAULT 0,
+    net_pay         NUMERIC(12,2) NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(payroll_run_id, employee_id)             -- one item per employee per run
+);
+
+
+-- ============================================
 -- MENUS TABLE
 -- Sidebar/navigation menus with tree structure
 -- ============================================
@@ -299,6 +345,13 @@ CREATE INDEX idx_attendance_user_id ON attendance(user_id);
 CREATE INDEX idx_attendance_work_date ON attendance(work_date);
 CREATE INDEX idx_attendance_status ON attendance(status);
 
+-- Payroll
+CREATE INDEX idx_payroll_runs_branch_id ON payroll_runs(branch_id);
+CREATE INDEX idx_payroll_runs_status ON payroll_runs(status);
+CREATE INDEX idx_payroll_runs_period ON payroll_runs(period_from, period_to);
+CREATE INDEX idx_payroll_items_run_id ON payroll_items(payroll_run_id);
+CREATE INDEX idx_payroll_items_employee_id ON payroll_items(employee_id);
+
 -- Branches
 CREATE INDEX idx_branches_code ON branches(code);
 
@@ -338,6 +391,10 @@ CREATE TRIGGER trg_office_timings_updated_at
 
 CREATE TRIGGER trg_attendance_updated_at
     BEFORE UPDATE ON attendance
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_payroll_runs_updated_at
+    BEFORE UPDATE ON payroll_runs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE TRIGGER trg_menus_updated_at
