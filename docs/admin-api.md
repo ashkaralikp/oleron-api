@@ -609,7 +609,8 @@ curl -X GET http://localhost:8080/api/v1/employees \
       "employee_code": "EMP001",
       "designation": "Software Engineer",
       "employment_type": "full_time",
-      "hourly_rate": 25.00,
+      "fixed_monthly_salary": 3000.00,
+      "ot_rate": 15.00,
       "currency": "USD",
       "joining_date": "2026-01-15T00:00:00Z",
       "first_name": "Jane",
@@ -654,7 +655,8 @@ curl -X GET http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "employee_code": "EMP001",
     "designation": "Software Engineer",
     "employment_type": "full_time",
-    "hourly_rate": 25.00,
+    "fixed_monthly_salary": 3000.00,
+    "ot_rate": 15.00,
     "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",
@@ -702,9 +704,10 @@ POST /api/v1/employees
 | `office_timing_id`  | string | ❌       | UUID of the employee's office timing (overrides branch default; `null` = use branch timing) |
 | `manager_id`        | string | ❌       | UUID of the manager (must have `manager` role)           |
 | `designation`       | string | ❌       | Job title (e.g. `"Software Engineer"`)                   |
-| `employment_type`   | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
-| `hourly_rate`       | number | ❌       | Hourly rate used for salary calculation                  |
-| `currency`          | string | ❌       | 3-letter currency code (default: `USD`). e.g. `USD`, `INR`, `EUR`  |
+| `employment_type`       | string | ❌       | One of: `full_time`, `part_time`, `contract` (default: `full_time`) |
+| `fixed_monthly_salary`  | number | ❌       | Fixed monthly salary paid when full month is worked      |
+| `ot_rate`               | number | ❌       | Per OT hour rate, on top of the fixed monthly salary     |
+| `currency`              | string | ❌       | 3-letter currency code (default: `USD`). e.g. `USD`, `INR`, `EUR`  |
 
 #### cURL
 
@@ -724,7 +727,8 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "employee_code": "EMP001",
     "designation": "Software Engineer",
     "employment_type": "full_time",
-    "hourly_rate": 25.00,
+    "fixed_monthly_salary": 3000.00,
+    "ot_rate": 15.00,
     "currency": "INR",
     "joining_date": "2026-01-15",
     "phone": "+1122334455"
@@ -745,7 +749,8 @@ curl -X POST http://localhost:8080/api/v1/employees \
     "employee_code": "EMP001",
     "designation": "Software Engineer",
     "employment_type": "full_time",
-    "hourly_rate": 25.00,
+    "fixed_monthly_salary": 3000.00,
+    "ot_rate": 15.00,
     "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",
@@ -789,9 +794,10 @@ PUT /api/v1/employees/{id}
 | `office_timing_id`  | string | ❌       | Reassign to a different office timing (or `null` to fall back to branch timing) |
 | `manager_id`        | string | ❌       | Reassign to a different manager                                      |
 | `designation`       | string | ❌       | Updated job title                                                    |
-| `employment_type`   | string | ❌       | One of: `full_time`, `part_time`, `contract`                         |
-| `hourly_rate`       | number | ❌       | Updated hourly rate                                                  |
-| `currency`          | string | ❌       | 3-letter currency code. e.g. `USD`, `INR`, `EUR`                    |
+| `employment_type`       | string | ❌       | One of: `full_time`, `part_time`, `contract`                     |
+| `fixed_monthly_salary`  | number | ❌       | Updated fixed monthly salary                                     |
+| `ot_rate`               | number | ❌       | Updated OT hour rate                                             |
+| `currency`              | string | ❌       | 3-letter currency code. e.g. `USD`, `INR`, `EUR`                 |
 
 #### cURL
 
@@ -802,7 +808,8 @@ curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
   -H "Authorization: Bearer <access_token>" \
   -d '{
     "designation": "Senior Software Engineer",
-    "hourly_rate": 30.00,
+    "fixed_monthly_salary": 3500.00,
+    "ot_rate": 18.00,
     "status": "active"
   }'
 ```
@@ -821,7 +828,8 @@ curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
     "employee_code": "EMP001",
     "designation": "Senior Software Engineer",
     "employment_type": "full_time",
-    "hourly_rate": 30.00,
+    "fixed_monthly_salary": 3500.00,
+    "ot_rate": 18.00,
     "currency": "INR",
     "joining_date": "2026-01-15T00:00:00Z",
     "first_name": "Jane",

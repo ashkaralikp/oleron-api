@@ -130,10 +130,11 @@ type CreateEmployeeRequest struct {
 	ManagerID       *string  `json:"manager_id"`
 	EmployeeCode   string   `json:"employee_code" validate:"required"`
 	Designation    string   `json:"designation"`
-	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
-	HourlyRate     *float64 `json:"hourly_rate"`
-	Currency       string   `json:"currency" validate:"omitempty,len=3"` // e.g. USD, INR, EUR
-	JoiningDate    string   `json:"joining_date" validate:"required"` // format: YYYY-MM-DD
+	EmploymentType      string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
+	FixedMonthlySalary *float64 `json:"fixed_monthly_salary"`
+	OTRate             *float64 `json:"ot_rate"`
+	Currency           string   `json:"currency" validate:"omitempty,len=3"` // e.g. USD, INR, EUR
+	JoiningDate        string   `json:"joining_date" validate:"required"`    // format: YYYY-MM-DD
 }
 
 type UpdateEmployeeRequest struct {
@@ -143,12 +144,13 @@ type UpdateEmployeeRequest struct {
 	Phone     string `json:"phone"`
 	Status    string `json:"status" validate:"omitempty,oneof=active inactive suspended pending"`
 	// Employee fields
-	OfficeTimingID  *string  `json:"office_timing_id"`
-	ManagerID       *string  `json:"manager_id"`
-	Designation    string   `json:"designation"`
-	EmploymentType string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
-	HourlyRate     *float64 `json:"hourly_rate"`
-	Currency       string   `json:"currency" validate:"omitempty,len=3"`
+	OfficeTimingID     *string  `json:"office_timing_id"`
+	ManagerID          *string  `json:"manager_id"`
+	Designation        string   `json:"designation"`
+	EmploymentType     string   `json:"employment_type" validate:"omitempty,oneof=full_time part_time contract"`
+	FixedMonthlySalary *float64 `json:"fixed_monthly_salary"`
+	OTRate             *float64 `json:"ot_rate"`
+	Currency           string   `json:"currency" validate:"omitempty,len=3"`
 }
 
 type EmployeeResponse struct {
@@ -159,10 +161,11 @@ type EmployeeResponse struct {
 	ManagerID       *string  `json:"manager_id,omitempty"`
 	EmployeeCode   string   `json:"employee_code"`
 	Designation    *string  `json:"designation,omitempty"`
-	EmploymentType string   `json:"employment_type"`
-	HourlyRate     *float64 `json:"hourly_rate,omitempty"`
-	Currency       string   `json:"currency"`
-	JoiningDate    string   `json:"joining_date"`
+	EmploymentType      string   `json:"employment_type"`
+	FixedMonthlySalary *float64 `json:"fixed_monthly_salary,omitempty"`
+	OTRate             *float64 `json:"ot_rate,omitempty"`
+	Currency           string   `json:"currency"`
+	JoiningDate        string   `json:"joining_date"`
 	FirstName      string   `json:"first_name"`
 	LastName       string   `json:"last_name"`
 	Email          string   `json:"email"`

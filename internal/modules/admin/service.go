@@ -214,13 +214,14 @@ func (s *Service) CreateEmployee(ctx context.Context, req CreateEmployeeRequest)
 	}
 
 	e := &models.Employee{
-		BranchID:       req.BranchID,
-		OfficeTimingID: req.OfficeTimingID,
-		ManagerID:      req.ManagerID,
-		EmployeeCode:   req.EmployeeCode,
-		EmploymentType: "full_time",
-		HourlyRate:     req.HourlyRate,
-		Currency:       "USD",
+		BranchID:           req.BranchID,
+		OfficeTimingID:     req.OfficeTimingID,
+		ManagerID:          req.ManagerID,
+		EmployeeCode:       req.EmployeeCode,
+		EmploymentType:     "full_time",
+		FixedMonthlySalary: req.FixedMonthlySalary,
+		OTRate:             req.OTRate,
+		Currency:           "USD",
 	}
 	if req.Designation != "" {
 		e.Designation = &req.Designation
@@ -287,8 +288,11 @@ func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmplo
 	if req.EmploymentType != "" {
 		existing.EmploymentType = req.EmploymentType
 	}
-	if req.HourlyRate != nil {
-		existing.HourlyRate = req.HourlyRate
+	if req.FixedMonthlySalary != nil {
+		existing.FixedMonthlySalary = req.FixedMonthlySalary
+	}
+	if req.OTRate != nil {
+		existing.OTRate = req.OTRate
 	}
 	if req.Currency != "" {
 		existing.Currency = req.Currency

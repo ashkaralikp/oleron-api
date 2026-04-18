@@ -10,9 +10,10 @@ type Employee struct {
 	ManagerID       *string    `json:"manager_id,omitempty"`
 	EmployeeCode   string     `json:"employee_code"`
 	Designation    *string    `json:"designation,omitempty"`
-	EmploymentType string     `json:"employment_type"`
-	HourlyRate     *float64   `json:"hourly_rate,omitempty"`
-	Currency       string     `json:"currency"`
+	EmploymentType      string   `json:"employment_type"`
+	FixedMonthlySalary *float64 `json:"fixed_monthly_salary,omitempty"`
+	OTRate             *float64 `json:"ot_rate,omitempty"`
+	Currency           string   `json:"currency"`
 	JoiningDate    time.Time  `json:"joining_date"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
