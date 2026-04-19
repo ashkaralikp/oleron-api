@@ -161,7 +161,6 @@ CREATE TABLE employees (
     employment_type  VARCHAR(20) DEFAULT 'full_time',               -- full_time, part_time, contract, consultant
     fixed_monthly_salary  NUMERIC(10,2),   -- paid when full month is worked
     ot_rate               NUMERIC(10,2),   -- per OT hour, on top of fixed
-    hourly_rate      NUMERIC(10,2),
     currency         VARCHAR(3) NOT NULL DEFAULT 'USD',  -- e.g. USD, INR, EUR
     joining_date     DATE NOT NULL,
     created_at       TIMESTAMPTZ DEFAULT NOW(),
