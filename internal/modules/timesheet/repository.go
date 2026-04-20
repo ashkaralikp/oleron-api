@@ -123,18 +123,20 @@ func (r *Repository) GetMine(ctx context.Context, employeeID string, year, month
 	))
 }
 
-func (r *Repository) GetAll(ctx context.Context, role, branchID string) ([]TimesheetResponse, error) {
+func (r *Repository) GetAll(ctx context.Context, role, branchID string, year, month int) ([]TimesheetResponse, error) {
 	var query string
 	var args []any
 
 	if role == "super_admin" {
 		query = `SELECT` + tsCols + tsJoin + `
-		         ORDER BY ct.year DESC, ct.month DESC, ct.submitted_at DESC`
+		         WHERE ct.year = $1 AND ct.month = $2
+		         ORDER BY ct.submitted_at DESC`
+		args = append(args, year, month)
 	} else {
 		query = `SELECT` + tsCols + tsJoin + `
-		         WHERE e.branch_id = $1
-		         ORDER BY ct.year DESC, ct.month DESC, ct.submitted_at DESC`
-		args = append(args, branchID)
+		         WHERE e.branch_id = $1 AND ct.year = $2 AND ct.month = $3
+		         ORDER BY ct.submitted_at DESC`
+		args = append(args, branchID, year, month)
 	}
 
 	rows, err := r.db.Query(ctx, query, args...)

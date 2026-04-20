@@ -11,14 +11,14 @@ Base URL: `http://localhost:8080/api/v1`
 > | `POST /api/v1/timesheets/estimate` | All authenticated roles |
 > | `POST /api/v1/timesheets` | `consultant` |
 > | `GET /api/v1/timesheets/me?year={year}&month={month}` | `consultant` |
-> | `GET /api/v1/timesheets` | `super_admin`, `admin`, `manager` |
+> | `GET /api/v1/timesheets?year={year}&month={month}` | `super_admin`, `admin`, `manager` |
 > | `GET /api/v1/timesheets/{id}` | `super_admin`, `admin`, `manager` |
 > | `PATCH /api/v1/timesheets/{id}/review` | `super_admin`, `admin`, `manager` |
 
 ---
 
 ## Table of Contents
-
+        
 - [1. Calculate Pay Estimate](#1-calculate-pay-estimate)
 - [2. Submit Timesheet](#2-submit-timesheet)
 - [3. View My Timesheet](#3-view-my-timesheet)
@@ -288,15 +288,28 @@ curl -X GET "http://localhost:8080/api/v1/timesheets/me?year=2026&month=4" \
 ## 4. List All Timesheets
 
 ```
-GET /api/v1/timesheets
+GET /api/v1/timesheets?year={year}&month={month}
 ```
 
-Returns all consultant timesheets. `admin` and `manager` see only their branch; `super_admin` sees all.
+Returns consultant timesheets for the given month. `admin` and `manager` see only their branch; `super_admin` sees all. Both query parameters are optional — defaults to the current month and year if omitted.
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `year` | integer | ❌ | Calendar year (default: current year) |
+| `month` | integer | ❌ | Month number `1–12` (default: current month) |
 
 #### cURL
 
 ```bash
+# Current month (default)
 curl -X GET http://localhost:8080/api/v1/timesheets \
+  -H "X-API-Key: your-api-key" \
+  -H "Authorization: Bearer <admin_access_token>"
+
+# Specific month
+curl -X GET "http://localhost:8080/api/v1/timesheets?year=2026&month=4" \
   -H "X-API-Key: your-api-key" \
   -H "Authorization: Bearer <admin_access_token>"
 ```

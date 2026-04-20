@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
@@ -129,12 +130,19 @@ func (h *Handler) GetMine(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, ts)
 }
 
-// GetAll returns timesheets visible to the caller (branch-scoped for admin/manager).
+// GetAll returns timesheets for a given month (branch-scoped for admin/manager).
+// year and month are optional query params; defaults to the current month.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	role := r.Context().Value(middleware.UserRoleKey).(string)
 	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
 
-	list, err := h.repo.GetAll(ctx(r), role, branchID)
+	now := time.Now()
+	year, month := now.Year(), int(now.Month())
+	if y, m, ok := parseYearMonth(r); ok {
+		year, month = y, m
+	}
+
+	list, err := h.repo.GetAll(ctx(r), role, branchID, year, month)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch timesheets")
 		return
