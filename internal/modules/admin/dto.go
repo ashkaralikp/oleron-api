@@ -47,7 +47,7 @@ type CreateUserRequest struct {
 	Email     string `json:"email" validate:"required,email"`
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required,min=6"`
-	Role      string `json:"role" validate:"required,oneof=super_admin admin manager employee"`
+	Role      string `json:"role" validate:"required,oneof=super_admin admin manager employee consultant"`
 }
 
 type UpdateUserRequest struct {
@@ -56,7 +56,7 @@ type UpdateUserRequest struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
-	Role      string `json:"role" validate:"omitempty,oneof=super_admin admin manager employee"`
+	Role      string `json:"role" validate:"omitempty,oneof=super_admin admin manager employee consultant"`
 	Status    string `json:"status" validate:"omitempty,oneof=active inactive suspended pending"`
 }
 
@@ -180,7 +180,7 @@ type EmployeeResponse struct {
 // =============================================
 
 type CreateRolePermissionRequest struct {
-	Role      string `json:"role" validate:"required,oneof=super_admin admin manager employee"`
+	Role      string `json:"role" validate:"required,oneof=super_admin admin manager employee consultant"`
 	Resource  string `json:"resource" validate:"required,oneof=employee attendance payroll report settings"`
 	CanView   *bool  `json:"can_view"`
 	CanCreate *bool  `json:"can_create"`
@@ -189,7 +189,7 @@ type CreateRolePermissionRequest struct {
 }
 
 type UpdateRolePermissionRequest struct {
-	Role      string `json:"role" validate:"omitempty,oneof=super_admin admin manager employee"`
+	Role      string `json:"role" validate:"omitempty,oneof=super_admin admin manager employee consultant"`
 	Resource  string `json:"resource" validate:"omitempty,oneof=employee attendance payroll report settings"`
 	CanView   *bool  `json:"can_view"`
 	CanCreate *bool  `json:"can_create"`

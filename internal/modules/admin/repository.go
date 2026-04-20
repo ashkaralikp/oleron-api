@@ -244,10 +244,10 @@ func (r *Repository) CreateEmployee(ctx context.Context, u *models.User, e *mode
 	// Create user account with employee role
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (branch_id, first_name, last_name, email, phone, password_hash, role, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, 'employee', 'active')
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
 		 RETURNING id, created_at, updated_at`,
 		u.BranchID, u.FirstName, u.LastName, u.Email,
-		u.Phone, u.PasswordHash,
+		u.Phone, u.PasswordHash, u.Role,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return err
@@ -277,8 +277,8 @@ func (r *Repository) UpdateEmployee(ctx context.Context, id string, u *models.Us
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx,
-		`UPDATE users SET first_name = $2, last_name = $3, phone = $4, status = $5 WHERE id = $1`,
-		e.UserID, u.FirstName, u.LastName, u.Phone, u.Status,
+		`UPDATE users SET first_name = $2, last_name = $3, phone = $4, status = $5, role = $6 WHERE id = $1`,
+		e.UserID, u.FirstName, u.LastName, u.Phone, u.Status, u.Role,
 	)
 	if err != nil {
 		return err

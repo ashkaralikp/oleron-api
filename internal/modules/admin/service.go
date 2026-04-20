@@ -202,12 +202,18 @@ func (s *Service) CreateEmployee(ctx context.Context, req CreateEmployeeRequest)
 		return nil, errors.New("failed to hash password")
 	}
 
+	role := "employee"
+	if req.EmploymentType == "consultant" {
+		role = "consultant"
+	}
+
 	u := &models.User{
 		BranchID:     req.BranchID,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		Email:        req.Email,
 		PasswordHash: passwordHash,
+		Role:         role,
 	}
 	if req.Phone != "" {
 		u.Phone = &req.Phone
@@ -257,11 +263,18 @@ func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmplo
 		return nil, errors.New("employee not found")
 	}
 
+	// derive role from current employment_type; overridden below if employment_type is changing
+	currentRole := "employee"
+	if existing.EmploymentType == "consultant" {
+		currentRole = "consultant"
+	}
+
 	u := &models.User{
 		FirstName: existing.FirstName,
 		LastName:  existing.LastName,
 		Phone:     existing.Phone,
 		Status:    existing.Status,
+		Role:      currentRole,
 	}
 	if req.FirstName != "" {
 		u.FirstName = req.FirstName
@@ -287,6 +300,11 @@ func (s *Service) UpdateEmployee(ctx context.Context, id string, req UpdateEmplo
 	}
 	if req.EmploymentType != "" {
 		existing.EmploymentType = req.EmploymentType
+		if req.EmploymentType == "consultant" {
+			u.Role = "consultant"
+		} else {
+			u.Role = "employee"
+		}
 	}
 	if req.FixedMonthlySalary != nil {
 		existing.FixedMonthlySalary = req.FixedMonthlySalary

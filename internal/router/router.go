@@ -14,6 +14,7 @@ import (
 	"rmp-api/internal/modules/recruitment"
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
+	"rmp-api/internal/modules/timesheet"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -59,6 +60,10 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			attendanceHandler := attendance.NewHandler(db)
 			payrollHandler := payroll.NewHandler(db)
 			recruitmentHandler := recruitment.NewHandler(db)
+			timesheetHandler := timesheet.NewHandler(db)
+
+			// Timesheet estimate (all authenticated roles)
+			r.Post("/timesheets/estimate", timesheetHandler.Estimate)
 
 			// Recruitment routes (super_admin, admin, manager)
 			r.Route("/recruitment", func(r chi.Router) {

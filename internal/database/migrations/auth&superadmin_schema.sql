@@ -12,8 +12,8 @@ CREATE TYPE user_role AS ENUM (
     'super_admin',    -- Full system access across all branches
     'admin',          -- Branch level full access (Manager)
     'manager',        -- Manages employees within a branch
-    'employee'        -- Punches in/out; views own attendance and salary
-    'consultant'       -- External consultant with limited access (e.g. payroll only)
+    'employee',       -- Punches in/out; views own attendance and salary
+    'consultant'      -- External consultant with limited access (e.g. payroll only)
 );
 
 CREATE TYPE user_status AS ENUM (
