@@ -33,14 +33,18 @@ func Compute(in EstimateInput) EstimateResult {
 	var scenario string
 	var estimatedPay float64
 
+	fullMonthCovered := in.SupportHours >= wholeMonthHours
 	switch {
-	case in.SupportHours >= wholeMonthHours && in.OvertimeHours > 0:
+	case fullMonthCovered && in.OvertimeHours > 0:
+		// Regular hours met + extra OT hours logged → pay fixed + OT
 		scenario = "Over"
 		estimatedPay = in.FixedMonthlySalary + (in.OvertimeHours * in.OTRate)
-	case math.Abs(in.SupportHours-wholeMonthHours) < 0.01:
+	case fullMonthCovered:
+		// Regular hours met, no OT
 		scenario = "Full"
 		estimatedPay = in.FixedMonthlySalary
 	default:
+		// Worked less than the full month; OT not applicable
 		scenario = "Partial"
 		estimatedPay = in.SupportHours * hourlyRate
 	}
