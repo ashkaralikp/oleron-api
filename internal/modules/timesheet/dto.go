@@ -60,4 +60,6 @@ type TimesheetResponse struct {
 	ReviewNote    *string    `json:"review_note,omitempty"`
 	ReviewedAt    *time.Time `json:"reviewed_at,omitempty"`
 	SubmittedAt   time.Time  `json:"submitted_at"`
+	EstimatedPay  float64    `json:"estimated_pay"`
+	Currency      string     `json:"currency"`
 }

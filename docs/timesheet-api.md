@@ -332,7 +332,9 @@ curl -X GET "http://localhost:8080/api/v1/timesheets?year=2026&month=4" \
       "overtime_hours": 4.0,
       "notes": "Worked from client site for week 2",
       "status": "pending",
-      "submitted_at": "2026-04-20T10:30:00Z"
+      "submitted_at": "2026-04-20T10:30:00Z",
+      "estimated_pay": 185833.33,
+      "currency": "INR"
     }
   ]
 }
@@ -373,7 +375,9 @@ curl -X GET http://localhost:8080/api/v1/timesheets/a1b2c3d4-... \
     "overtime_hours": 4.0,
     "notes": "Worked from client site for week 2",
     "status": "pending",
-    "submitted_at": "2026-04-20T10:30:00Z"
+    "submitted_at": "2026-04-20T10:30:00Z",
+    "estimated_pay": 185833.33,
+    "currency": "INR"
   }
 }
 ```

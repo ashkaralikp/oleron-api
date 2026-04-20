@@ -34,6 +34,23 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 
 func ctx(r *http.Request) context.Context { return r.Context() }
 
+func (h *Handler) attachEstimate(c context.Context, ts *TimesheetResponse) {
+	cfg, err := h.repo.FetchConfigByEmployeeID(c, ts.EmployeeID)
+	if err != nil {
+		return
+	}
+	result := Compute(EstimateInput{
+		Year:               ts.Year,
+		Month:              ts.Month,
+		SupportHours:       ts.SupportHours,
+		OvertimeHours:      ts.OvertimeHours,
+		FixedMonthlySalary: cfg.FixedMonthlySalary,
+		OTRate:             cfg.OTRate,
+	})
+	ts.EstimatedPay = result.EstimatedPay
+	ts.Currency = cfg.Currency
+}
+
 // Estimate computes the pay estimate for the currently logged-in user.
 func (h *Handler) Estimate(w http.ResponseWriter, r *http.Request) {
 	callerUserID := r.Context().Value(middleware.UserIDKey).(string)
@@ -147,6 +164,9 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch timesheets")
 		return
 	}
+	for i := range list {
+		h.attachEstimate(ctx(r), &list[i])
+	}
 	response.Success(w, list)
 }
 
@@ -169,6 +189,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, "timesheet not found")
 		return
 	}
+	h.attachEstimate(ctx(r), ts)
 	response.Success(w, ts)
 }
 
