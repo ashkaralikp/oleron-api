@@ -607,3 +607,35 @@ CREATE TRIGGER trg_interviews_updated_at
 --             └── interviews → Scheduled interview sessions (type, outcome, feedback)
 --
 -- Hire flow: vacancy(open) → application(applied) → (shortlisted) → interview(scheduled) → application(hired) → create user+employee
+
+
+
+-- Consultant monthly timesheet submissions
+
+CREATE TABLE IF NOT EXISTS consultant_timesheets (
+    id             UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    employee_id    UUID         NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    year           INT          NOT NULL CHECK (year >= 2000),
+    month          INT          NOT NULL CHECK (month BETWEEN 1 AND 12),
+    support_hours  NUMERIC(8,2) NOT NULL DEFAULT 0,
+    overtime_hours NUMERIC(8,2) NOT NULL DEFAULT 0,
+    notes          TEXT,
+
+    status         TEXT         NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending', 'approved', 'rejected')),
+    reviewer_id    UUID         REFERENCES users(id),
+    review_note    TEXT,
+    reviewed_at    TIMESTAMPTZ,
+
+    submitted_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+
+    UNIQUE (employee_id, year, month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_consultant_timesheets_employee ON consultant_timesheets (employee_id);
+CREATE INDEX IF NOT EXISTS idx_consultant_timesheets_status   ON consultant_timesheets (status);
+
+CREATE TRIGGER update_consultant_timesheets_updated_at
+    BEFORE UPDATE ON consultant_timesheets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();

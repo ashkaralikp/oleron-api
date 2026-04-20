@@ -4,13 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 	"rmp-api/pkg/validator"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func parseYearMonth(r *http.Request) (year, month int, ok bool) {
+	y, errY := strconv.Atoi(r.URL.Query().Get("year"))
+	m, errM := strconv.Atoi(r.URL.Query().Get("month"))
+	if errY != nil || errM != nil || y < 2000 || m < 1 || m > 12 {
+		return 0, 0, false
+	}
+	return y, m, true
+}
 
 type Handler struct {
 	repo *Repository
@@ -22,10 +33,9 @@ func NewHandler(db *pgxpool.Pool) *Handler {
 
 func ctx(r *http.Request) context.Context { return r.Context() }
 
-// Estimate computes the pay estimate for the currently logged-in employee.
+// Estimate computes the pay estimate for the currently logged-in user.
 func (h *Handler) Estimate(w http.ResponseWriter, r *http.Request) {
 	callerUserID := r.Context().Value(middleware.UserIDKey).(string)
-	_ = r.Context().Value(middleware.UserRoleKey).(string)
 
 	var req EstimateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -65,4 +75,124 @@ func (h *Handler) Estimate(w http.ResponseWriter, r *http.Request) {
 		EstimatedPay:       result.EstimatedPay,
 		Currency:           cfg.Currency,
 	})
+}
+
+// Submit allows a consultant to submit (or resubmit) their monthly timesheet.
+func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
+	callerUserID := r.Context().Value(middleware.UserIDKey).(string)
+
+	cfg, err := h.repo.FetchConfigByUserID(ctx(r), callerUserID)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "employee record not found for your account")
+		return
+	}
+
+	var req SubmitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validator.Validate(req); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	ts, err := h.repo.Submit(ctx(r), cfg.EmployeeID, req)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to submit timesheet")
+		return
+	}
+	response.Success(w, ts)
+}
+
+// GetMine returns the timesheet for the given year+month for the logged-in consultant.
+func (h *Handler) GetMine(w http.ResponseWriter, r *http.Request) {
+	callerUserID := r.Context().Value(middleware.UserIDKey).(string)
+
+	year, month, ok := parseYearMonth(r)
+	if !ok {
+		response.Error(w, http.StatusBadRequest, "year and month query parameters are required (e.g. ?year=2026&month=4)")
+		return
+	}
+
+	cfg, err := h.repo.FetchConfigByUserID(ctx(r), callerUserID)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "employee record not found for your account")
+		return
+	}
+
+	ts, err := h.repo.GetMine(ctx(r), cfg.EmployeeID, year, month)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "timesheet not found for the given month")
+		return
+	}
+	response.Success(w, ts)
+}
+
+// GetAll returns timesheets visible to the caller (branch-scoped for admin/manager).
+func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
+	role := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
+
+	list, err := h.repo.GetAll(ctx(r), role, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to fetch timesheets")
+		return
+	}
+	response.Success(w, list)
+}
+
+// GetByID returns a single timesheet; admin/manager are restricted to their branch.
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	role := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
+
+	if role != "super_admin" {
+		ok, err := h.repo.IsTimesheetInBranch(ctx(r), id, branchID)
+		if err != nil || !ok {
+			response.Error(w, http.StatusNotFound, "timesheet not found")
+			return
+		}
+	}
+
+	ts, err := h.repo.GetByID(ctx(r), id)
+	if err != nil {
+		response.Error(w, http.StatusNotFound, "timesheet not found")
+		return
+	}
+	response.Success(w, ts)
+}
+
+// Review lets an admin or manager approve or reject a timesheet.
+func (h *Handler) Review(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	role := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
+	reviewerUserID := r.Context().Value(middleware.UserIDKey).(string)
+
+	if role != "super_admin" {
+		ok, err := h.repo.IsTimesheetInBranch(ctx(r), id, branchID)
+		if err != nil || !ok {
+			response.Error(w, http.StatusNotFound, "timesheet not found")
+			return
+		}
+	}
+
+	var req ReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validator.Validate(req); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	ts, err := h.repo.Review(ctx(r), id, req.Status, req.ReviewNote, reviewerUserID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to update timesheet")
+		return
+	}
+	response.Success(w, ts)
 }

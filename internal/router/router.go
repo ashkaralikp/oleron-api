@@ -65,6 +65,15 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			// Timesheet estimate (all authenticated roles)
 			r.Post("/timesheets/estimate", timesheetHandler.Estimate)
 
+			// Timesheet submission (consultant only)
+			r.With(middleware.RequireRole("consultant")).Post("/timesheets", timesheetHandler.Submit)
+			r.With(middleware.RequireRole("consultant")).Get("/timesheets/me", timesheetHandler.GetMine)
+
+			// Timesheet review (super_admin, admin, manager)
+			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Get("/timesheets", timesheetHandler.GetAll)
+			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Get("/timesheets/{id}", timesheetHandler.GetByID)
+			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Patch("/timesheets/{id}/review", timesheetHandler.Review)
+
 			// Recruitment routes (super_admin, admin, manager)
 			r.Route("/recruitment", func(r chi.Router) {
 				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
