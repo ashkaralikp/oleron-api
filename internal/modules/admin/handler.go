@@ -269,6 +269,26 @@ func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, map[string]string{"message": "employee deleted"})
 }
 
+func (h *Handler) ResetEmployeePassword(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Password == "" {
+		response.Error(w, http.StatusBadRequest, "password is required")
+		return
+	}
+
+	if err := h.service.ResetEmployeePassword(r.Context(), id, req); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to reset password: "+err.Error())
+		return
+	}
+	response.Success(w, map[string]string{"message": "password reset successful"})
+}
+
 // =============================================
 // MENU HANDLERS
 // =============================================

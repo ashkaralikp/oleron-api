@@ -33,7 +33,8 @@ Base URL: `http://localhost:8080/api/v1/admin`
   - [2. Get Employee by ID](#2-get-employee-by-id)
   - [3. Create Employee](#3-create-employee)
   - [4. Update Employee](#4-update-employee)
-  - [5. Delete Employee](#5-delete-employee)
+  - [5. Reset Employee Password](#5-reset-employee-password)
+  - [6. Delete Employee](#6-delete-employee)
 - [Menus (super_admin only)](#menus-super_admin-only)
   - [1. List All Menus (Flat)](#1-list-all-menus-flat)
   - [2. List All Menus (Tree)](#2-list-all-menus-tree)
@@ -845,7 +846,62 @@ curl -X PUT http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-44665
 
 ---
 
-### 5. Delete Employee
+### 5. Reset Employee Password
+
+```
+PATCH /api/v1/employees/{id}/password
+```
+
+#### Request Body
+
+| Field      | Type   | Required | Description                |
+|-----------|--------|----------|----------------------------|
+| `password` | string | ✅       | New password (min 6 chars) |
+
+#### cURL
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/employees/ee0e8400-e29b-41d4-a716-446655440001/password \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "password": "NewSecure456"
+  }'
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "password reset successful"
+  }
+}
+```
+
+#### ❌ 400 Bad Request
+
+```json
+{
+  "success": false,
+  "error": "password is required"
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "failed to reset password: employee not found"
+}
+```
+
+---
+
+### 6. Delete Employee
 
 Deletes the employee profile **and** the linked user account (cascades via foreign key).
 

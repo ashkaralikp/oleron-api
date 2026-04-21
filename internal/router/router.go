@@ -146,6 +146,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Post("/", adminHandler.CreateEmployee)
 				r.Get("/{id}", adminHandler.GetEmployeeByID)
 				r.Put("/{id}", adminHandler.UpdateEmployee)
+				r.Patch("/{id}/password", adminHandler.ResetEmployeePassword)
 				r.Delete("/{id}", adminHandler.DeleteEmployee)
 			})
 

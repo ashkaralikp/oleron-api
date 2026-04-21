@@ -331,6 +331,18 @@ func (s *Service) DeleteEmployee(ctx context.Context, id string) error {
 	return s.repo.DeleteEmployee(ctx, id)
 }
 
+func (s *Service) ResetEmployeePassword(ctx context.Context, id string, req ResetPasswordRequest) error {
+	emp, err := s.repo.FindEmployeeByID(ctx, id)
+	if err != nil {
+		return errors.New("employee not found")
+	}
+	passwordHash, err := hash.HashPassword(req.Password)
+	if err != nil {
+		return errors.New("failed to hash password")
+	}
+	return s.repo.UpdateUserPassword(ctx, emp.UserID, passwordHash)
+}
+
 // =============================================
 // MENU SERVICE
 // =============================================
