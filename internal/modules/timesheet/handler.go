@@ -144,6 +144,16 @@ func (h *Handler) GetMine(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, "timesheet not found for the given month")
 		return
 	}
+	result := Compute(EstimateInput{
+		Year:               ts.Year,
+		Month:              ts.Month,
+		SupportHours:       ts.SupportHours,
+		OvertimeHours:      ts.OvertimeHours,
+		FixedMonthlySalary: cfg.FixedMonthlySalary,
+		OTRate:             cfg.OTRate,
+	})
+	ts.EstimatedPay = result.EstimatedPay
+	ts.Currency = cfg.Currency
 	response.Success(w, ts)
 }
 
