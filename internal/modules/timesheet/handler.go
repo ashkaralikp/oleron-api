@@ -47,7 +47,7 @@ func (h *Handler) attachEstimate(c context.Context, ts *TimesheetResponse) {
 		FixedMonthlySalary: cfg.FixedMonthlySalary,
 		OTRate:             cfg.OTRate,
 	})
-	ts.EstimatedPay = result.EstimatedPay
+	ts.EstimatedPay = Money(result.EstimatedPay)
 	ts.Currency = cfg.Currency
 }
 
@@ -90,7 +90,7 @@ func (h *Handler) Estimate(w http.ResponseWriter, r *http.Request) {
 		OTRate:             cfg.OTRate,
 		HourlyRate:         result.HourlyRate,
 		Scenario:           result.Scenario,
-		EstimatedPay:       result.EstimatedPay,
+		EstimatedPay:       Money(result.EstimatedPay),
 		Currency:           cfg.Currency,
 	})
 }
@@ -152,7 +152,7 @@ func (h *Handler) GetMine(w http.ResponseWriter, r *http.Request) {
 		FixedMonthlySalary: cfg.FixedMonthlySalary,
 		OTRate:             cfg.OTRate,
 	})
-	ts.EstimatedPay = result.EstimatedPay
+	ts.EstimatedPay = Money(result.EstimatedPay)
 	ts.Currency = cfg.Currency
 	response.Success(w, ts)
 }

@@ -1,6 +1,16 @@
 package timesheet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+// Money always serializes to exactly 2 decimal places in JSON.
+type Money float64
+
+func (m Money) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("%.2f", float64(m))), nil
+}
 
 // ── Estimate ─────────────────────────────────────────────────────
 
@@ -21,8 +31,8 @@ type EstimateResponse struct {
 	OTRate             float64 `json:"ot_rate"`
 	HourlyRate         float64 `json:"hourly_rate"`
 	Scenario           string  `json:"scenario"`
-	EstimatedPay       float64 `json:"estimated_pay"`
-	Currency           string  `json:"currency"`
+	EstimatedPay       Money  `json:"estimated_pay"`
+	Currency           string `json:"currency"`
 }
 
 // ── Submit (consultant) ───────────────────────────────────────────
@@ -60,6 +70,6 @@ type TimesheetResponse struct {
 	ReviewNote    *string    `json:"review_note,omitempty"`
 	ReviewedAt    *time.Time `json:"reviewed_at,omitempty"`
 	SubmittedAt   time.Time  `json:"submitted_at"`
-	EstimatedPay  float64    `json:"estimated_pay"`
+	EstimatedPay  Money      `json:"estimated_pay"`
 	Currency      string     `json:"currency"`
 }
