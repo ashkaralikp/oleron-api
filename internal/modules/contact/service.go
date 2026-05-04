@@ -36,6 +36,22 @@ func (s *Service) CreateSubmission(ctx context.Context, req CreateSubmissionRequ
 	return s.repo.CreateSubmission(ctx, req, normalizedIP, normalizedUserAgent)
 }
 
+func (s *Service) GetAll(ctx context.Context, statusFilter string) ([]*models.ContactSubmission, error) {
+	return s.repo.GetAll(ctx, statusFilter)
+}
+
+func (s *Service) GetByID(ctx context.Context, id string) (*models.ContactSubmission, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *Service) UpdateStatus(ctx context.Context, id, status string) (*models.ContactSubmission, error) {
+	return s.repo.UpdateStatus(ctx, id, status)
+}
+
+func (s *Service) Delete(ctx context.Context, id string) (bool, error) {
+	return s.repo.Delete(ctx, id)
+}
+
 func trimOptional(value *string) *string {
 	if value == nil {
 		return nil

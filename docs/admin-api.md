@@ -48,6 +48,11 @@ Base URL: `http://localhost:8080/api/v1/admin`
   - [3. Create Role Permission](#3-create-role-permission)
   - [4. Update Role Permission](#4-update-role-permission)
   - [5. Delete Role Permission](#5-delete-role-permission)
+- [Contact Submissions (super_admin, admin, manager)](#contact-submissions-super_admin-admin-manager)
+  - [1. List All Submissions](#1-list-all-submissions)
+  - [2. Get Submission by ID](#2-get-submission-by-id)
+  - [3. Update Submission Status](#3-update-submission-status)
+  - [4. Delete Submission](#4-delete-submission)
 - [Common Error Responses](#common-error-responses)
 - [Status Codes Summary](#status-codes-summary)
 - [Available User Roles](#available-user-roles)
@@ -1562,6 +1567,206 @@ curl -X DELETE http://localhost:8080/api/v1/admin/role-permissions/de0e8400-e29b
   "data": {
     "message": "role permission deleted"
   }
+}
+```
+
+---
+
+## Contact Submissions (super_admin, admin, manager)
+
+> Submissions are created publicly via `POST /api/v1/contact-submissions` (rate-limited, no auth).  
+> The endpoints below are for admin review and management only.
+
+### 1. List All Submissions
+
+```
+GET /api/v1/admin/contact-submissions
+```
+
+#### Query Parameters
+
+| Parameter | Type   | Required | Description                                               |
+|----------|--------|----------|-----------------------------------------------------------|
+| `status`  | string | ❌       | Filter by status: `new`, `read`, `replied`, `archived`    |
+
+#### cURL
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/contact-submissions?status=new" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "f10e8400-e29b-41d4-a716-446655440001",
+      "name": "John Doe",
+      "company": "Acme Corp",
+      "email": "john@acme.com",
+      "phone": "+1234567890",
+      "category": "Sales",
+      "message": "I'd like to learn more about your platform.",
+      "status": "new",
+      "ip_address": "203.0.113.10",
+      "user_agent": "Mozilla/5.0 ...",
+      "created_at": "2026-05-01T09:00:00Z",
+      "updated_at": "2026-05-01T09:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Get Submission by ID
+
+```
+GET /api/v1/admin/contact-submissions/{id}
+```
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/admin/contact-submissions/f10e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "f10e8400-e29b-41d4-a716-446655440001",
+    "name": "John Doe",
+    "company": "Acme Corp",
+    "email": "john@acme.com",
+    "phone": "+1234567890",
+    "category": "Sales",
+    "message": "I'd like to learn more about your platform.",
+    "status": "new",
+    "ip_address": "203.0.113.10",
+    "user_agent": "Mozilla/5.0 ...",
+    "created_at": "2026-05-01T09:00:00Z",
+    "updated_at": "2026-05-01T09:00:00Z"
+  }
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "submission not found"
+}
+```
+
+---
+
+### 3. Update Submission Status
+
+```
+PATCH /api/v1/admin/contact-submissions/{id}/status
+```
+
+#### Request Body
+
+| Field    | Type   | Required | Description                                         |
+|---------|--------|----------|-----------------------------------------------------|
+| `status` | string | ✅       | One of: `new`, `read`, `replied`, `archived`        |
+
+#### cURL
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/admin/contact-submissions/f10e8400-e29b-41d4-a716-446655440001/status \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "status": "read"
+  }'
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "f10e8400-e29b-41d4-a716-446655440001",
+    "name": "John Doe",
+    "company": "Acme Corp",
+    "email": "john@acme.com",
+    "phone": "+1234567890",
+    "category": "Sales",
+    "message": "I'd like to learn more about your platform.",
+    "status": "read",
+    "ip_address": "203.0.113.10",
+    "user_agent": "Mozilla/5.0 ...",
+    "created_at": "2026-05-01T09:00:00Z",
+    "updated_at": "2026-05-01T09:15:00Z"
+  }
+}
+```
+
+#### ❌ 422 Unprocessable Entity
+
+```json
+{
+  "success": false,
+  "error": "Key: 'UpdateSubmissionStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag"
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "submission not found"
+}
+```
+
+---
+
+### 4. Delete Submission
+
+```
+DELETE /api/v1/admin/contact-submissions/{id}
+```
+
+#### cURL
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/admin/contact-submissions/f10e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "submission deleted"
+  }
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "submission not found"
 }
 ```
 

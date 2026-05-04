@@ -8,3 +8,7 @@ type CreateSubmissionRequest struct {
 	Category *string `json:"category" validate:"omitempty,max=100"`
 	Message  string  `json:"message" validate:"required,max=5000"`
 }
+
+type UpdateSubmissionStatusRequest struct {
+	Status string `json:"status" validate:"required,oneof=new read replied archived"`
+}

@@ -156,6 +156,15 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Delete("/{id}", adminHandler.DeleteEmployee)
 			})
 
+			// Contact submissions (super_admin, admin, manager)
+			r.Route("/admin/contact-submissions", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Get("/", contactHandler.GetAll)
+				r.Get("/{id}", contactHandler.GetByID)
+				r.Patch("/{id}/status", contactHandler.UpdateStatus)
+				r.Delete("/{id}", contactHandler.Delete)
+			})
+
 			// Admin routes (super_admin only)
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(middleware.RequireRole("super_admin"))
