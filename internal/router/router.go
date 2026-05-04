@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	"rmp-api/internal/config"
 	"rmp-api/internal/middleware"
@@ -9,6 +10,7 @@ import (
 	"rmp-api/internal/modules/attendance"
 	"rmp-api/internal/modules/auth"
 	"rmp-api/internal/modules/calendar"
+	"rmp-api/internal/modules/contact"
 	"rmp-api/internal/modules/myprofile"
 	"rmp-api/internal/modules/payroll"
 	"rmp-api/internal/modules/recruitment"
@@ -26,6 +28,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 
 	// Global middleware
 	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.CORS)
@@ -37,6 +40,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
+		contactHandler := contact.NewHandler(db)
+		r.With(middleware.RateLimit(5, time.Minute)).Post("/contact-submissions", contactHandler.CreateSubmission)
+
 		// Public routes (mobile app with API key)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.APIKey(cfg))

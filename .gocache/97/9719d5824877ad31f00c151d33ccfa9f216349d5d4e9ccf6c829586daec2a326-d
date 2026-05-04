@@ -1,0 +1,12 @@
+./attendance.go
+./branch.go
+./branch_calendar.go
+./contact_submission.go
+./employee.go
+./menu.go
+./office_timing.go
+./payroll.go
+./recruitment.go
+./role_permission.go
+./timesheet.go
+./user.go
