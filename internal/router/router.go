@@ -38,6 +38,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// Static file server for uploaded files
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir(cfg.UploadDir))))
+
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
 		contactHandler := contact.NewHandler(db)
@@ -48,8 +51,10 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.Use(middleware.APIKey(cfg))
 			r.Post("/auth/login", auth.NewHandler(db, cfg.JWTSecret).Login)
 			r.Post("/auth/refresh", auth.NewHandler(db, cfg.JWTSecret).Refresh)
-			// Public recruitment: candidates apply without a JWT
-			recruitmentHandlerPublic := recruitment.NewHandler(db)
+			// Public recruitment: no JWT required
+			recruitmentHandlerPublic := recruitment.NewHandler(db, cfg.UploadDir, cfg.BaseURL)
+			r.Post("/recruitment/upload/cv", recruitmentHandlerPublic.UploadCV)
+			r.Get("/recruitment/vacancies/public", recruitmentHandlerPublic.GetPublicVacancies)
 			r.Post("/recruitment/vacancies/{id}/apply", recruitmentHandlerPublic.Apply)
 		})
 
@@ -65,7 +70,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			calendarHandler := calendar.NewHandler(db)
 			attendanceHandler := attendance.NewHandler(db)
 			payrollHandler := payroll.NewHandler(db)
-			recruitmentHandler := recruitment.NewHandler(db)
+			recruitmentHandler := recruitment.NewHandler(db, cfg.UploadDir, cfg.BaseURL)
 			timesheetHandler := timesheet.NewHandler(db)
 
 			// Timesheet estimate (all authenticated roles)
@@ -91,6 +96,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Patch("/vacancies/{id}/status", recruitmentHandler.UpdateVacancyStatus)
 				r.Delete("/vacancies/{id}", recruitmentHandler.DeleteVacancy)
 				// Applications
+				r.Post("/vacancies/{id}/apply/bulk", recruitmentHandler.BulkApply)
 				r.Get("/vacancies/{id}/applications", recruitmentHandler.GetApplicationsByVacancy)
 				r.Get("/applications/{id}", recruitmentHandler.GetApplicationByID)
 				r.Patch("/applications/{id}/status", recruitmentHandler.UpdateApplicationStatus)

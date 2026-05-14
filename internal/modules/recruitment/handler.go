@@ -1,8 +1,14 @@
 package recruitment
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
@@ -13,11 +19,17 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service   *Service
+	uploadDir string
+	baseURL   string
 }
 
-func NewHandler(db *pgxpool.Pool) *Handler {
-	return &Handler{service: NewService(NewRepository(db))}
+func NewHandler(db *pgxpool.Pool, uploadDir, baseURL string) *Handler {
+	return &Handler{
+		service:   NewService(NewRepository(db)),
+		uploadDir: uploadDir,
+		baseURL:   baseURL,
+	}
 }
 
 func ctx(r *http.Request) (role, branchID, userID string) {
@@ -28,10 +40,73 @@ func ctx(r *http.Request) (role, branchID, userID string) {
 }
 
 // ─────────────────────────────────────────────
-// PUBLIC — candidates apply (no JWT)
-// POST /recruitment/vacancies/{id}/apply
+// PUBLIC — no JWT required
 // ─────────────────────────────────────────────
 
+// POST /recruitment/upload/cv
+func (h *Handler) UploadCV(w http.ResponseWriter, r *http.Request) {
+	const maxSize = 5 << 20 // 5 MB
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+
+	if err := r.ParseMultipartForm(maxSize); err != nil {
+		response.Error(w, http.StatusUnprocessableEntity, "file too large: max 5MB")
+		return
+	}
+
+	file, header, err := r.FormFile("cv")
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "cv file is required")
+		return
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowed := map[string]bool{".pdf": true, ".doc": true, ".docx": true}
+	if !allowed[ext] {
+		response.Error(w, http.StatusUnprocessableEntity, "only PDF, DOC, and DOCX files are allowed")
+		return
+	}
+
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to generate filename")
+		return
+	}
+	filename := hex.EncodeToString(b) + ext
+	destDir := filepath.Join(h.uploadDir, "cvs")
+
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to store file")
+		return
+	}
+
+	dst, err := os.Create(filepath.Join(destDir, filename))
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to store file")
+		return
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to store file")
+		return
+	}
+
+	cvURL := strings.TrimRight(h.baseURL, "/") + "/uploads/cvs/" + filename
+	response.Created(w, map[string]string{"cv_url": cvURL})
+}
+
+// GET /recruitment/vacancies/public
+func (h *Handler) GetPublicVacancies(w http.ResponseWriter, r *http.Request) {
+	vacancies, err := h.service.GetPublicVacancies(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to fetch vacancies")
+		return
+	}
+	response.Success(w, vacancies)
+}
+
+// POST /recruitment/vacancies/{id}/apply
 func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 	vacancyID := chi.URLParam(r, "id")
 
@@ -192,6 +267,36 @@ func (h *Handler) DeleteVacancy(w http.ResponseWriter, r *http.Request) {
 // ─────────────────────────────────────────────
 // APPLICATIONS
 // ─────────────────────────────────────────────
+
+// POST /recruitment/vacancies/{id}/apply/bulk
+func (h *Handler) BulkApply(w http.ResponseWriter, r *http.Request) {
+	vacancyID := chi.URLParam(r, "id")
+	role, branchID, _ := ctx(r)
+
+	var req BulkApplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validator.Validate(req); err != nil {
+		response.Error(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	result, err := h.service.BulkApply(r.Context(), vacancyID, role, branchID, req)
+	if err != nil {
+		switch err.Error() {
+		case "forbidden":
+			response.Error(w, http.StatusForbidden, "insufficient permissions")
+		case "vacancy not found":
+			response.Error(w, http.StatusNotFound, err.Error())
+		default:
+			response.Error(w, http.StatusInternalServerError, "failed to process applications")
+		}
+		return
+	}
+	response.Created(w, result)
+}
 
 // GET /recruitment/vacancies/{id}/applications?status=
 func (h *Handler) GetApplicationsByVacancy(w http.ResponseWriter, r *http.Request) {

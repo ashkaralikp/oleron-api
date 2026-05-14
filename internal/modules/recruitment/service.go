@@ -18,6 +18,14 @@ func NewService(repo *Repository) *Service {
 }
 
 // ─────────────────────────────────────────────
+// PUBLIC VACANCIES
+// ─────────────────────────────────────────────
+
+func (s *Service) GetPublicVacancies(ctx context.Context) ([]PublicVacancy, error) {
+	return s.repo.FindPublicVacancies(ctx)
+}
+
+// ─────────────────────────────────────────────
 // VACANCIES
 // ─────────────────────────────────────────────
 
@@ -93,6 +101,31 @@ func (s *Service) guardVacancy(ctx context.Context, id, role, branchID string) e
 // Apply is the public endpoint — no role or branch ownership check.
 func (s *Service) Apply(ctx context.Context, vacancyID string, req ApplyRequest) (*models.Application, error) {
 	return s.repo.CreateApplication(ctx, vacancyID, req)
+}
+
+// BulkApply is the admin endpoint — processes each applicant independently
+// so a failure on one row does not abort the rest.
+func (s *Service) BulkApply(ctx context.Context, vacancyID, role, branchID string, req BulkApplyRequest) (*BulkApplyResult, error) {
+	if err := s.guardVacancy(ctx, vacancyID, role, branchID); err != nil {
+		return nil, err
+	}
+	result := &BulkApplyResult{Total: len(req.Applications)}
+	for _, app := range req.Applications {
+		created, err := s.repo.CreateApplication(ctx, vacancyID, app)
+		row := ApplicationResult{Email: app.Email}
+		if err != nil {
+			row.Status = "failed"
+			msg := err.Error()
+			row.Error = &msg
+			result.Failed++
+		} else {
+			row.Status = "created"
+			row.ID = &created.ID
+			result.Succeeded++
+		}
+		result.Results = append(result.Results, row)
+	}
+	return result, nil
 }
 
 func (s *Service) GetApplicationsByVacancy(ctx context.Context, vacancyID, role, branchID, statusFilter string) ([]models.Application, error) {

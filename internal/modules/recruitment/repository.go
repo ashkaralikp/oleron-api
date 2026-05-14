@@ -21,6 +21,44 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 }
 
 // ─────────────────────────────────────────────
+// PUBLIC VACANCIES
+// ─────────────────────────────────────────────
+
+// FindPublicVacancies returns open vacancies that still have unfilled positions and
+// have not passed their deadline. Internal fields (branch_id, created_by) are excluded.
+func (r *Repository) FindPublicVacancies(ctx context.Context) ([]PublicVacancy, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT v.id, v.title, v.department, v.description, v.requirements,
+		       v.positions, v.deadline, v.created_at, v.updated_at,
+		       v.positions - COUNT(a.id) FILTER (WHERE a.status = 'hired') AS available_positions
+		FROM vacancies v
+		LEFT JOIN applications a ON a.vacancy_id = v.id
+		WHERE v.status = 'open'
+		  AND (v.deadline IS NULL OR v.deadline >= CURRENT_DATE)
+		GROUP BY v.id
+		HAVING (v.positions - COUNT(a.id) FILTER (WHERE a.status = 'hired')) > 0
+		ORDER BY v.created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []PublicVacancy
+	for rows.Next() {
+		var v PublicVacancy
+		if err := rows.Scan(
+			&v.ID, &v.Title, &v.Department, &v.Description, &v.Requirements,
+			&v.Positions, &v.Deadline, &v.CreatedAt, &v.UpdatedAt, &v.AvailablePositions,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+// ─────────────────────────────────────────────
 // VACANCIES
 // ─────────────────────────────────────────────
 

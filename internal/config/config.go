@@ -16,6 +16,8 @@ type Config struct {
 	JWTSecret   string
 	APIKey      string
 	Environment string
+	UploadDir   string
+	BaseURL     string
 }
 
 func Load() *Config {
@@ -30,6 +32,8 @@ func Load() *Config {
 		JWTSecret:   getEnv("JWT_SECRET", ""),
 		APIKey:      getEnv("API_KEY", ""),
 		Environment: getEnv("ENV", "development"),
+		UploadDir:   getEnv("UPLOAD_DIR", "./uploads"),
+		BaseURL:     getEnv("BASE_URL", "http://localhost:8080"),
 	}
 }
 

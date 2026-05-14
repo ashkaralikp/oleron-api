@@ -31,25 +31,29 @@ Base URL: `http://localhost:8080/api/v1`
 
 ## Table of Contents
 
+- [Public (no JWT)](#public-no-jwt)
+  - [1. Upload CV](#1-upload-cv)
+  - [2. List Open Vacancies (Public)](#2-list-open-vacancies-public)
+  - [3. Apply for a Vacancy (Public)](#3-apply-for-a-vacancy-public)
 - [Vacancies](#vacancies)
-  - [1. List All Vacancies](#1-list-all-vacancies)
-  - [2. Get Vacancy by ID](#2-get-vacancy-by-id)
-  - [3. Create Vacancy](#3-create-vacancy)
-  - [4. Update Vacancy](#4-update-vacancy)
-  - [5. Update Vacancy Status](#5-update-vacancy-status)
-  - [6. Delete Vacancy](#6-delete-vacancy)
+  - [3. List All Vacancies](#3-list-all-vacancies)
+  - [4. Get Vacancy by ID](#4-get-vacancy-by-id)
+  - [5. Create Vacancy](#5-create-vacancy)
+  - [6. Update Vacancy](#6-update-vacancy)
+  - [7. Update Vacancy Status](#7-update-vacancy-status)
+  - [8. Delete Vacancy](#8-delete-vacancy)
 - [Applications](#applications)
-  - [7. Apply for a Vacancy (Public)](#7-apply-for-a-vacancy-public)
-  - [8. List Applications for a Vacancy](#8-list-applications-for-a-vacancy)
-  - [9. Get Application by ID](#9-get-application-by-id)
-  - [10. Update Application Status](#10-update-application-status)
-  - [11. Delete Application](#11-delete-application)
+  - [9. Bulk Apply (Admin)](#9-bulk-apply-admin)
+  - [10. List Applications for a Vacancy](#10-list-applications-for-a-vacancy)
+  - [11. Get Application by ID](#11-get-application-by-id)
+  - [12. Update Application Status](#12-update-application-status)
+  - [13. Delete Application](#13-delete-application)
 - [Interviews](#interviews)
-  - [12. Schedule Interview](#12-schedule-interview)
-  - [13. Update Interview](#13-update-interview)
-  - [14. Delete Interview](#14-delete-interview)
+  - [13. Schedule Interview](#13-schedule-interview)
+  - [14. Update Interview](#14-update-interview)
+  - [15. Delete Interview](#15-delete-interview)
 - [Hire](#hire)
-  - [15. Hire Applicant](#15-hire-applicant)
+  - [16. Hire Applicant](#16-hire-applicant)
 - [Common Error Responses](#common-error-responses)
 - [Status Codes Summary](#status-codes-summary)
 - [Reference Tables](#reference-tables)
@@ -57,22 +61,94 @@ Base URL: `http://localhost:8080/api/v1`
 
 ---
 
-## Vacancies
+## Public (no JWT)
 
-### 1. List All Vacancies
+### 1. Upload CV
 
 ```
-GET /api/v1/recruitment/vacancies
+POST /api/v1/recruitment/upload/cv
 ```
 
-Returns all vacancies for the branch (summary only, no applications). `super_admin` sees all branches. Ordered by most recent first.
+Uploads a CV file to the server and returns a URL to use in the apply request. Call this **before** submitting an application.
+
+> **Auth:** `X-API-Key` only — no JWT required.
+
+#### Request
+
+`Content-Type: multipart/form-data`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `cv` | file | ✅ | CV file — PDF, DOC, or DOCX only. Max 5 MB. |
 
 #### cURL
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/recruitment/vacancies \
+curl -X POST http://localhost:8080/api/v1/recruitment/upload/cv \
   -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>"
+  -F "cv=@/path/to/jane-smith-cv.pdf"
+```
+
+#### ✅ 201 Created
+
+```json
+{
+  "success": true,
+  "data": {
+    "cv_url": "http://localhost:8080/uploads/cvs/3f1a2b4c8d9e0f1a2b3c4d5e6f7a8b9c.pdf"
+  }
+}
+```
+
+#### ❌ 400 Bad Request — no file provided
+
+```json
+{
+  "success": false,
+  "error": "cv file is required"
+}
+```
+
+#### ❌ 422 Unprocessable Entity — wrong file type
+
+```json
+{
+  "success": false,
+  "error": "only PDF, DOC, and DOCX files are allowed"
+}
+```
+
+#### ❌ 422 Unprocessable Entity — file too large
+
+```json
+{
+  "success": false,
+  "error": "file too large: max 5MB"
+}
+```
+
+---
+
+### 2. List Open Vacancies (Public)
+
+```
+GET /api/v1/recruitment/vacancies/public
+```
+
+Returns all vacancies that are currently open and still have unfilled positions. Intended for use on a public careers page or candidate portal.
+
+> **Auth:** `X-API-Key` only — no JWT required.
+
+**Filtering rules applied automatically:**
+- `status = open` only
+- Deadline has not passed (`deadline IS NULL OR deadline >= today`)
+- At least one position is still available (`positions - hired_count > 0`)
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/recruitment/vacancies/public \
+  -H "X-API-Key: your-mobile-app-api-key"
 ```
 
 #### ✅ 200 OK
@@ -83,24 +159,21 @@ curl -X GET http://localhost:8080/api/v1/recruitment/vacancies \
   "data": [
     {
       "id": "vv0e8400-e29b-41d4-a716-446655440001",
-      "branch_id": "550e8400-e29b-41d4-a716-446655440000",
-      "created_by": "880e8400-e29b-41d4-a716-446655440002",
       "title": "Senior Go Developer",
       "department": "Engineering",
       "description": "We are looking for an experienced Go developer...",
       "requirements": "5+ years of Go experience, PostgreSQL knowledge",
       "positions": 2,
-      "status": "open",
+      "available_positions": 1,
       "deadline": "2026-05-31T00:00:00Z",
       "created_at": "2026-04-17T09:00:00Z",
-      "updated_at": "2026-04-17T09:00:00Z",
-      "application_count": 14
+      "updated_at": "2026-04-17T09:00:00Z"
     }
   ]
 }
 ```
 
-#### ✅ 200 OK — No vacancies
+#### ✅ 200 OK — No open vacancies
 
 ```json
 {
@@ -111,319 +184,7 @@ curl -X GET http://localhost:8080/api/v1/recruitment/vacancies \
 
 ---
 
-### 2. Get Vacancy by ID
-
-```
-GET /api/v1/recruitment/vacancies/{id}
-```
-
-Returns a single vacancy with its current application count.
-
-#### cURL
-
-```bash
-curl -X GET http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>"
-```
-
-#### ✅ 200 OK
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "vv0e8400-e29b-41d4-a716-446655440001",
-    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
-    "created_by": "880e8400-e29b-41d4-a716-446655440002",
-    "title": "Senior Go Developer",
-    "department": "Engineering",
-    "description": "We are looking for an experienced Go developer...",
-    "requirements": "5+ years of Go experience, PostgreSQL knowledge",
-    "positions": 2,
-    "status": "open",
-    "deadline": "2026-05-31T00:00:00Z",
-    "created_at": "2026-04-17T09:00:00Z",
-    "updated_at": "2026-04-17T09:00:00Z",
-    "application_count": 14
-  }
-}
-```
-
-#### ❌ 403 Forbidden
-
-```json
-{
-  "success": false,
-  "error": "insufficient permissions"
-}
-```
-
-#### ❌ 404 Not Found
-
-```json
-{
-  "success": false,
-  "error": "vacancy not found"
-}
-```
-
----
-
-### 3. Create Vacancy
-
-```
-POST /api/v1/recruitment/vacancies
-```
-
-Creates a new job vacancy for the caller's branch. Created with status `draft` — publish it with [Update Vacancy Status](#5-update-vacancy-status).
-
-#### Request Body
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `title` | string | ✅ | Job title (max 150 characters) |
-| `department` | string | ❌ | Department name (e.g. `"Engineering"`) |
-| `description` | string | ❌ | Full job description / JD |
-| `requirements` | string | ❌ | Skills and qualifications |
-| `positions` | integer | ❌ | Number of openings (default: `1`) |
-| `deadline` | string | ❌ | Application deadline `YYYY-MM-DD` |
-
-#### cURL
-
-```bash
-curl -X POST http://localhost:8080/api/v1/recruitment/vacancies \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>" \
-  -d '{
-    "title": "Senior Go Developer",
-    "department": "Engineering",
-    "description": "We are looking for an experienced Go developer to join our team.",
-    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
-    "positions": 2,
-    "deadline": "2026-05-31"
-  }'
-```
-
-#### ✅ 201 Created
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "vv0e8400-e29b-41d4-a716-446655440001",
-    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
-    "created_by": "880e8400-e29b-41d4-a716-446655440002",
-    "title": "Senior Go Developer",
-    "department": "Engineering",
-    "description": "We are looking for an experienced Go developer to join our team.",
-    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
-    "positions": 2,
-    "status": "draft",
-    "deadline": "2026-05-31T00:00:00Z",
-    "created_at": "2026-04-17T09:00:00Z",
-    "updated_at": "2026-04-17T09:00:00Z"
-  }
-}
-```
-
-#### ❌ 422 Unprocessable Entity
-
-```json
-{
-  "success": false,
-  "error": "Key: 'CreateVacancyRequest.Title' Error:Field validation for 'Title' failed on the 'required' tag"
-}
-```
-
----
-
-### 4. Update Vacancy
-
-```
-PUT /api/v1/recruitment/vacancies/{id}
-```
-
-Updates vacancy fields. All fields are optional — only provided fields are changed.
-
-> `admin` and `manager` can only update vacancies from their own branch.
-
-#### Request Body
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `title` | string | ❌ | Job title |
-| `department` | string | ❌ | Department name |
-| `description` | string | ❌ | Full job description |
-| `requirements` | string | ❌ | Skills and qualifications |
-| `positions` | integer | ❌ | Number of openings (min: `1`) |
-| `deadline` | string | ❌ | Application deadline `YYYY-MM-DD` |
-
-#### cURL
-
-```bash
-curl -X PUT http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>" \
-  -d '{
-    "positions": 3,
-    "deadline": "2026-06-15"
-  }'
-```
-
-#### ✅ 200 OK
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "vv0e8400-e29b-41d4-a716-446655440001",
-    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
-    "created_by": "880e8400-e29b-41d4-a716-446655440002",
-    "title": "Senior Go Developer",
-    "department": "Engineering",
-    "description": "We are looking for an experienced Go developer to join our team.",
-    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
-    "positions": 3,
-    "status": "open",
-    "deadline": "2026-06-15T00:00:00Z",
-    "created_at": "2026-04-17T09:00:00Z",
-    "updated_at": "2026-04-17T10:00:00Z"
-  }
-}
-```
-
-#### ❌ 403 Forbidden
-
-```json
-{
-  "success": false,
-  "error": "insufficient permissions"
-}
-```
-
-#### ❌ 404 Not Found
-
-```json
-{
-  "success": false,
-  "error": "vacancy not found"
-}
-```
-
----
-
-### 5. Update Vacancy Status
-
-```
-PATCH /api/v1/recruitment/vacancies/{id}/status
-```
-
-Moves a vacancy through its lifecycle. There is no enforced order — you can transition freely between statuses.
-
-> `admin` and `manager` can only update vacancies from their own branch.
-
-#### Request Body
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `status` | string | ✅ | One of: `draft`, `open`, `closed`, `cancelled` |
-
-#### cURL — Publish
-
-```bash
-curl -X PATCH http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001/status \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>" \
-  -d '{ "status": "open" }'
-```
-
-#### cURL — Close
-
-```bash
-curl -X PATCH http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001/status \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>" \
-  -d '{ "status": "closed" }'
-```
-
-#### ✅ 200 OK
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "vv0e8400-e29b-41d4-a716-446655440001",
-    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
-    "created_by": "880e8400-e29b-41d4-a716-446655440002",
-    "title": "Senior Go Developer",
-    "department": "Engineering",
-    "description": "We are looking for an experienced Go developer to join our team.",
-    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
-    "positions": 3,
-    "status": "open",
-    "deadline": "2026-06-15T00:00:00Z",
-    "created_at": "2026-04-17T09:00:00Z",
-    "updated_at": "2026-04-17T10:30:00Z"
-  }
-}
-```
-
-#### ❌ 422 Unprocessable Entity
-
-```json
-{
-  "success": false,
-  "error": "Key: 'UpdateVacancyStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag"
-}
-```
-
----
-
-### 6. Delete Vacancy
-
-```
-DELETE /api/v1/recruitment/vacancies/{id}
-```
-
-Deletes a vacancy and all its applications. **Only `draft` vacancies can be deleted.**
-
-> `admin` and `manager` can only delete vacancies from their own branch.
-
-#### cURL
-
-```bash
-curl -X DELETE http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
-  -H "X-API-Key: your-mobile-app-api-key" \
-  -H "Authorization: Bearer <access_token>"
-```
-
-#### ✅ 200 OK
-
-```json
-{
-  "success": true
-}
-```
-
-#### ❌ 422 Unprocessable Entity
-
-```json
-{
-  "success": false,
-  "error": "only draft vacancies can be deleted"
-}
-```
-
----
-
-## Applications
-
-### 7. Apply for a Vacancy (Public)
+### 2. Apply for a Vacancy (Public)
 
 ```
 POST /api/v1/recruitment/vacancies/{id}/apply
@@ -502,7 +263,482 @@ curl -X POST http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41
 
 ---
 
-### 8. List Applications for a Vacancy
+## Vacancies
+
+### 3. List All Vacancies
+
+```
+GET /api/v1/recruitment/vacancies
+```
+
+Returns all vacancies for the branch (summary only, no applications). `super_admin` sees all branches. Ordered by most recent first.
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/recruitment/vacancies \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "vv0e8400-e29b-41d4-a716-446655440001",
+      "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+      "created_by": "880e8400-e29b-41d4-a716-446655440002",
+      "title": "Senior Go Developer",
+      "department": "Engineering",
+      "description": "We are looking for an experienced Go developer...",
+      "requirements": "5+ years of Go experience, PostgreSQL knowledge",
+      "positions": 2,
+      "status": "open",
+      "deadline": "2026-05-31T00:00:00Z",
+      "created_at": "2026-04-17T09:00:00Z",
+      "updated_at": "2026-04-17T09:00:00Z",
+      "application_count": 14
+    }
+  ]
+}
+```
+
+#### ✅ 200 OK — No vacancies
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+---
+
+### 4. Get Vacancy by ID
+
+```
+GET /api/v1/recruitment/vacancies/{id}
+```
+
+Returns a single vacancy with its current application count.
+
+#### cURL
+
+```bash
+curl -X GET http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "vv0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "created_by": "880e8400-e29b-41d4-a716-446655440002",
+    "title": "Senior Go Developer",
+    "department": "Engineering",
+    "description": "We are looking for an experienced Go developer...",
+    "requirements": "5+ years of Go experience, PostgreSQL knowledge",
+    "positions": 2,
+    "status": "open",
+    "deadline": "2026-05-31T00:00:00Z",
+    "created_at": "2026-04-17T09:00:00Z",
+    "updated_at": "2026-04-17T09:00:00Z",
+    "application_count": 14
+  }
+}
+```
+
+#### ❌ 403 Forbidden
+
+```json
+{
+  "success": false,
+  "error": "insufficient permissions"
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "vacancy not found"
+}
+```
+
+---
+
+### 5. Create Vacancy
+
+```
+POST /api/v1/recruitment/vacancies
+```
+
+Creates a new job vacancy for the caller's branch. Created with status `draft` — publish it with [Update Vacancy Status](#5-update-vacancy-status).
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | ✅ | Job title (max 150 characters) |
+| `department` | string | ❌ | Department name (e.g. `"Engineering"`) |
+| `description` | string | ❌ | Full job description / JD |
+| `requirements` | string | ❌ | Skills and qualifications |
+| `positions` | integer | ❌ | Number of openings (default: `1`) |
+| `deadline` | string | ❌ | Application deadline `YYYY-MM-DD` |
+
+#### cURL
+
+```bash
+curl -X POST http://localhost:8080/api/v1/recruitment/vacancies \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "title": "Senior Go Developer",
+    "department": "Engineering",
+    "description": "We are looking for an experienced Go developer to join our team.",
+    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
+    "positions": 2,
+    "deadline": "2026-05-31"
+  }'
+```
+
+#### ✅ 201 Created
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "vv0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "created_by": "880e8400-e29b-41d4-a716-446655440002",
+    "title": "Senior Go Developer",
+    "department": "Engineering",
+    "description": "We are looking for an experienced Go developer to join our team.",
+    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
+    "positions": 2,
+    "status": "draft",
+    "deadline": "2026-05-31T00:00:00Z",
+    "created_at": "2026-04-17T09:00:00Z",
+    "updated_at": "2026-04-17T09:00:00Z"
+  }
+}
+```
+
+#### ❌ 422 Unprocessable Entity
+
+```json
+{
+  "success": false,
+  "error": "Key: 'CreateVacancyRequest.Title' Error:Field validation for 'Title' failed on the 'required' tag"
+}
+```
+
+---
+
+### 6. Update Vacancy
+
+```
+PUT /api/v1/recruitment/vacancies/{id}
+```
+
+Updates vacancy fields. All fields are optional — only provided fields are changed.
+
+> `admin` and `manager` can only update vacancies from their own branch.
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | ❌ | Job title |
+| `department` | string | ❌ | Department name |
+| `description` | string | ❌ | Full job description |
+| `requirements` | string | ❌ | Skills and qualifications |
+| `positions` | integer | ❌ | Number of openings (min: `1`) |
+| `deadline` | string | ❌ | Application deadline `YYYY-MM-DD` |
+
+#### cURL
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "positions": 3,
+    "deadline": "2026-06-15"
+  }'
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "vv0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "created_by": "880e8400-e29b-41d4-a716-446655440002",
+    "title": "Senior Go Developer",
+    "department": "Engineering",
+    "description": "We are looking for an experienced Go developer to join our team.",
+    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
+    "positions": 3,
+    "status": "open",
+    "deadline": "2026-06-15T00:00:00Z",
+    "created_at": "2026-04-17T09:00:00Z",
+    "updated_at": "2026-04-17T10:00:00Z"
+  }
+}
+```
+
+#### ❌ 403 Forbidden
+
+```json
+{
+  "success": false,
+  "error": "insufficient permissions"
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{
+  "success": false,
+  "error": "vacancy not found"
+}
+```
+
+---
+
+### 7. Update Vacancy Status
+
+```
+PATCH /api/v1/recruitment/vacancies/{id}/status
+```
+
+Moves a vacancy through its lifecycle. There is no enforced order — you can transition freely between statuses.
+
+> `admin` and `manager` can only update vacancies from their own branch.
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | string | ✅ | One of: `draft`, `open`, `closed`, `cancelled` |
+
+#### cURL — Publish
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001/status \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{ "status": "open" }'
+```
+
+#### cURL — Close
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001/status \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{ "status": "closed" }'
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "vv0e8400-e29b-41d4-a716-446655440001",
+    "branch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "created_by": "880e8400-e29b-41d4-a716-446655440002",
+    "title": "Senior Go Developer",
+    "department": "Engineering",
+    "description": "We are looking for an experienced Go developer to join our team.",
+    "requirements": "5+ years of Go experience, PostgreSQL knowledge, REST API design",
+    "positions": 3,
+    "status": "open",
+    "deadline": "2026-06-15T00:00:00Z",
+    "created_at": "2026-04-17T09:00:00Z",
+    "updated_at": "2026-04-17T10:30:00Z"
+  }
+}
+```
+
+#### ❌ 422 Unprocessable Entity
+
+```json
+{
+  "success": false,
+  "error": "Key: 'UpdateVacancyStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag"
+}
+```
+
+---
+
+### 8. Delete Vacancy
+
+```
+DELETE /api/v1/recruitment/vacancies/{id}
+```
+
+Deletes a vacancy and all its applications. **Only `draft` vacancies can be deleted.**
+
+> `admin` and `manager` can only delete vacancies from their own branch.
+
+#### cURL
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001 \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### ✅ 200 OK
+
+```json
+{
+  "success": true
+}
+```
+
+#### ❌ 422 Unprocessable Entity
+
+```json
+{
+  "success": false,
+  "error": "only draft vacancies can be deleted"
+}
+```
+
+---
+
+## Applications
+
+### 9. Bulk Apply (Admin)
+
+```
+POST /api/v1/recruitment/vacancies/{id}/apply/bulk
+```
+
+Adds multiple applications to a vacancy in a single request. Intended for admins manually entering applications received via email or other channels. Each row is processed independently — if one row fails (e.g. duplicate email), the rest still succeed.
+
+> **Auth:** JWT required. Roles: `super_admin`, `admin`, `manager`.  
+> The vacancy must have status `open`.
+
+#### Workflow for the admin console
+
+1. Upload each CV using `POST /recruitment/upload/cv` — get back a `cv_url` per file.
+2. Assemble the `applications` array (one object per row in the table).
+3. POST to this endpoint — review the per-row `results` for any failures.
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `applications` | array | ✅ | 1–100 applicant objects |
+
+Each object in `applications`:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `first_name` | string | ✅ | Applicant's first name |
+| `last_name` | string | ✅ | Applicant's last name |
+| `email` | string | ✅ | Applicant's email |
+| `phone` | string | ❌ | Contact phone number |
+| `cv_url` | string | ❌ | URL returned by the CV upload endpoint |
+| `cover_letter` | string | ❌ | Cover letter text |
+
+#### cURL
+
+```bash
+curl -X POST http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41d4-a716-446655440001/apply/bulk \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-mobile-app-api-key" \
+  -H "Authorization: Bearer <access_token>" \
+  -d '{
+    "applications": [
+      {
+        "first_name": "Jane",
+        "last_name": "Smith",
+        "email": "jane.smith@example.com",
+        "phone": "+1234567890",
+        "cv_url": "http://localhost:8080/uploads/cvs/abc123.pdf",
+        "cover_letter": "I am excited to apply..."
+      },
+      {
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+        "cv_url": "http://localhost:8080/uploads/cvs/def456.pdf"
+      }
+    ]
+  }'
+```
+
+#### ✅ 201 Created — all succeeded
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 2,
+    "succeeded": 2,
+    "failed": 0,
+    "results": [
+      { "email": "jane.smith@example.com", "status": "created", "id": "ap0e8400-e29b-41d4-a716-446655440001" },
+      { "email": "john.doe@example.com",   "status": "created", "id": "ap0e8400-e29b-41d4-a716-446655440002" }
+    ]
+  }
+}
+```
+
+#### ✅ 201 Created — partial failure
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 2,
+    "succeeded": 1,
+    "failed": 1,
+    "results": [
+      { "email": "jane.smith@example.com", "status": "created", "id": "ap0e8400-e29b-41d4-a716-446655440001" },
+      { "email": "john.doe@example.com",   "status": "failed",  "error": "vacancy is not open for applications" }
+    ]
+  }
+}
+```
+
+#### ❌ 404 Not Found
+
+```json
+{ "success": false, "error": "vacancy not found" }
+```
+
+#### ❌ 403 Forbidden
+
+```json
+{ "success": false, "error": "insufficient permissions" }
+```
+
+---
+
+### 10. List Applications for a Vacancy
 
 ```
 GET /api/v1/recruitment/vacancies/{id}/applications
@@ -559,7 +795,7 @@ curl -X GET "http://localhost:8080/api/v1/recruitment/vacancies/vv0e8400-e29b-41
 
 ---
 
-### 9. Get Application by ID
+### 10. Get Application by ID
 
 ```
 GET /api/v1/recruitment/applications/{id}
@@ -631,7 +867,7 @@ curl -X GET http://localhost:8080/api/v1/recruitment/applications/ap0e8400-e29b-
 
 ---
 
-### 10. Update Application Status
+### 11. Update Application Status
 
 ```
 PATCH /api/v1/recruitment/applications/{id}/status
@@ -692,7 +928,7 @@ curl -X PATCH http://localhost:8080/api/v1/recruitment/applications/ap0e8400-e29
 
 ---
 
-### 11. Delete Application
+### 12. Delete Application
 
 ```
 DELETE /api/v1/recruitment/applications/{id}
@@ -720,7 +956,7 @@ curl -X DELETE http://localhost:8080/api/v1/recruitment/applications/ap0e8400-e2
 
 ## Interviews
 
-### 12. Schedule Interview
+### 13. Schedule Interview
 
 ```
 POST /api/v1/recruitment/applications/{id}/interviews
@@ -783,7 +1019,7 @@ curl -X POST http://localhost:8080/api/v1/recruitment/applications/ap0e8400-e29b
 
 ---
 
-### 13. Update Interview
+### 14. Update Interview
 
 ```
 PUT /api/v1/recruitment/interviews/{id}
@@ -856,7 +1092,7 @@ curl -X PUT http://localhost:8080/api/v1/recruitment/interviews/iv0e8400-e29b-41
 
 ---
 
-### 14. Delete Interview
+### 15. Delete Interview
 
 ```
 DELETE /api/v1/recruitment/interviews/{id}
@@ -884,7 +1120,7 @@ curl -X DELETE http://localhost:8080/api/v1/recruitment/interviews/iv0e8400-e29b
 
 ## Hire
 
-### 15. Hire Applicant
+### 16. Hire Applicant
 
 ```
 POST /api/v1/recruitment/applications/{id}/hire
@@ -1060,6 +1296,23 @@ curl -X POST http://localhost:8080/api/v1/recruitment/applications/ap0e8400-e29b
 ---
 
 ## Response Fields Reference
+
+### PublicVacancy
+
+Returned by `GET /recruitment/vacancies/public`. Omits internal identifiers.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Vacancy UUID |
+| `title` | string | Job title |
+| `department` | string \| null | Department name |
+| `description` | string \| null | Full job description |
+| `requirements` | string \| null | Skills and qualifications |
+| `positions` | integer | Total number of openings |
+| `available_positions` | integer | Unfilled openings (`positions - hired count`) |
+| `deadline` | string \| null | Application deadline timestamp |
+| `created_at` | string | Creation timestamp |
+| `updated_at` | string | Last update timestamp |
 
 ### Vacancy
 

@@ -1,5 +1,26 @@
 package recruitment
 
+import "time"
+
+// ─────────────────────────────────────────────
+// PUBLIC VACANCY (careers page / candidate portal)
+// ─────────────────────────────────────────────
+
+// PublicVacancy is the candidate-facing vacancy shape.
+// Omits internal fields (branch_id, created_by) and exposes available_positions.
+type PublicVacancy struct {
+	ID                 string     `json:"id"`
+	Title              string     `json:"title"`
+	Department         *string    `json:"department"`
+	Description        *string    `json:"description"`
+	Requirements       *string    `json:"requirements"`
+	Positions          int        `json:"positions"`
+	AvailablePositions int        `json:"available_positions"`
+	Deadline           *time.Time `json:"deadline"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
 // ─────────────────────────────────────────────
 // VACANCY
 // ─────────────────────────────────────────────
@@ -30,7 +51,7 @@ type UpdateVacancyStatusRequest struct {
 // APPLICATION
 // ─────────────────────────────────────────────
 
-// ApplyRequest is the public-facing body used by candidates.
+// ApplyRequest is used by candidates (public) and admin bulk upload.
 type ApplyRequest struct {
 	FirstName   string  `json:"first_name" validate:"required,max=100"`
 	LastName    string  `json:"last_name" validate:"required,max=100"`
@@ -38,6 +59,26 @@ type ApplyRequest struct {
 	Phone       *string `json:"phone"`
 	CVUrl       *string `json:"cv_url"`
 	CoverLetter *string `json:"cover_letter"`
+}
+
+// BulkApplyRequest wraps up to 100 applicants for admin bulk submission.
+type BulkApplyRequest struct {
+	Applications []ApplyRequest `json:"applications" validate:"required,min=1,max=100,dive"`
+}
+
+// BulkApplyResult summarises the outcome of a bulk apply operation.
+type BulkApplyResult struct {
+	Total     int                 `json:"total"`
+	Succeeded int                 `json:"succeeded"`
+	Failed    int                 `json:"failed"`
+	Results   []ApplicationResult `json:"results"`
+}
+
+type ApplicationResult struct {
+	Email  string  `json:"email"`
+	Status string  `json:"status"` // "created" | "failed"
+	ID     *string `json:"id,omitempty"`
+	Error  *string `json:"error,omitempty"`
 }
 
 type UpdateApplicationStatusRequest struct {
