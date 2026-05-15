@@ -93,7 +93,7 @@ func (r *Repository) FindAllUsers(ctx context.Context) ([]models.User, error) {
 		`SELECT id, branch_id, first_name, last_name, email, phone,
 		        password_hash, role, status, avatar_url, last_login_at,
 		        created_at, updated_at
-		 FROM users ORDER BY created_at DESC`)
+		 FROM users WHERE role != 'super_admin' ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
