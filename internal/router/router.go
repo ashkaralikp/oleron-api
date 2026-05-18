@@ -81,13 +81,13 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.With(middleware.RequireRole("consultant")).Get("/timesheets/me", timesheetHandler.GetMine)
 
 			// Timesheet review (super_admin, admin, manager)
-			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Get("/timesheets", timesheetHandler.GetAll)
-			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Get("/timesheets/{id}", timesheetHandler.GetByID)
-			r.With(middleware.RequireRole("super_admin", "admin", "manager")).Patch("/timesheets/{id}/review", timesheetHandler.Review)
+			r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Get("/timesheets", timesheetHandler.GetAll)
+			r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Get("/timesheets/{id}", timesheetHandler.GetByID)
+			r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Patch("/timesheets/{id}/review", timesheetHandler.Review)
 
-			// Recruitment routes (super_admin, admin, manager)
+			// Recruitment routes (super_admin, regional_manager, manager)
 			r.Route("/recruitment", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				// Vacancies
 				r.Get("/vacancies", recruitmentHandler.GetAllVacancies)
 				r.Post("/vacancies", recruitmentHandler.CreateVacancy)
@@ -108,9 +108,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Delete("/interviews/{id}", recruitmentHandler.DeleteInterview)
 			})
 
-			// Payroll routes (super_admin, admin, manager)
+			// Payroll routes (super_admin, regional_manager, manager)
 			r.Route("/payroll", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/", payrollHandler.GetAll)
 				r.Post("/generate", payrollHandler.Generate)
 				r.Get("/{id}", payrollHandler.GetByID)
@@ -124,9 +124,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Get("/today", attendanceHandler.GetToday)
 			})
 
-			// Calendar routes (super_admin, admin, manager)
+			// Calendar routes (super_admin, regional_manager, manager)
 			r.Route("/calendar/branch-calendar", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/", calendarHandler.GetAll)
 				r.Post("/", calendarHandler.Create)
 				r.Get("/{id}", calendarHandler.GetByID)
@@ -134,9 +134,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Delete("/{id}", calendarHandler.Delete)
 			})
 
-			// Schedule routes (super_admin, admin, manager)
+			// Schedule routes (super_admin, regional_manager, manager)
 			r.Route("/schedule/office-timings", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/", scheduleHandler.GetAll)
 				r.Post("/", scheduleHandler.Create)
 				r.Get("/{id}", scheduleHandler.GetByID)
@@ -145,15 +145,15 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Put("/{id}/activate", scheduleHandler.Activate)
 			})
 
-			// Reports routes (super_admin, admin, manager)
+			// Reports routes (super_admin, regional_manager, manager)
 			r.Route("/reports", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/attendance", reportsHandler.GetAttendanceReport)
 			})
 
-			// Employee routes (super_admin, admin, manager)
+			// Employee routes (super_admin, regional_manager, manager)
 			r.Route("/employees", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/", adminHandler.GetAllEmployees)
 				r.Post("/", adminHandler.CreateEmployee)
 				r.Get("/{id}", adminHandler.GetEmployeeByID)
@@ -162,9 +162,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Delete("/{id}", adminHandler.DeleteEmployee)
 			})
 
-			// Contact submissions (super_admin, admin, manager)
+			// Contact submissions (super_admin, regional_manager, manager)
 			r.Route("/admin/contact-submissions", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "admin", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
 				r.Get("/", contactHandler.GetAll)
 				r.Get("/{id}", contactHandler.GetByID)
 				r.Patch("/{id}/status", contactHandler.UpdateStatus)
@@ -213,6 +213,10 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 					r.Put("/{id}", adminHandler.UpdateRolePermission)
 					r.Delete("/{id}", adminHandler.DeleteRolePermission)
 				})
+
+				// Regional manager branch assignments
+				r.Get("/regional-managers/{id}/branches", adminHandler.GetRegionalManagerBranches)
+				r.Put("/regional-managers/{id}/branches", adminHandler.SetRegionalManagerBranches)
 			})
 
 			r.Put("/profile/me", profileHandler.UpdateMyProfile)

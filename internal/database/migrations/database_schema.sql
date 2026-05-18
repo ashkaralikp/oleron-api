@@ -9,8 +9,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ENUMS
 -- ============================================
 CREATE TYPE user_role AS ENUM (
-    'super_admin',    -- Full system access across all branches
-    'admin',          -- Branch level full access (Manager)
+    'super_admin',       -- Full system access across all branches
+    'regional_manager',  -- Branch level full access (Manager)
     'manager',        -- Manages employees within a branch
     'employee',       -- Punches in/out; views own attendance and salary
     'consultant'      -- External consultant with limited access (e.g. payroll only)
@@ -446,11 +446,11 @@ INSERT INTO role_permissions (role, resource, can_view, can_create, can_edit, ca
 ('super_admin',  'report',      TRUE, TRUE,  TRUE,  TRUE),
 ('super_admin',  'settings',    TRUE, TRUE,  TRUE,  TRUE),
 
-('admin',        'employee',    TRUE, TRUE,  TRUE,  TRUE),
-('admin',        'attendance',  TRUE, TRUE,  TRUE,  TRUE),
-('admin',        'payroll',     TRUE, TRUE,  FALSE, FALSE),
-('admin',        'report',      TRUE, FALSE, FALSE, FALSE),
-('admin',        'settings',    TRUE, TRUE,  TRUE,  FALSE),
+('regional_manager', 'employee',    TRUE, TRUE,  TRUE,  TRUE),
+('regional_manager', 'attendance',  TRUE, TRUE,  TRUE,  TRUE),
+('regional_manager', 'payroll',     TRUE, TRUE,  FALSE, FALSE),
+('regional_manager', 'report',      TRUE, FALSE, FALSE, FALSE),
+('regional_manager', 'settings',    TRUE, TRUE,  TRUE,  FALSE),
 
 ('manager',      'employee',    TRUE, FALSE, FALSE, FALSE),
 ('manager',      'attendance',  TRUE, TRUE,  TRUE,  FALSE),
@@ -477,6 +477,22 @@ INSERT INTO menus (id, parent_id, label, path, resource, sort_order) VALUES
 INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
 ((SELECT id FROM menus WHERE label = 'Employees' AND parent_id IS NULL), 'Employee List',   '/employees',         'employee', 1),
 ((SELECT id FROM menus WHERE label = 'Employees' AND parent_id IS NULL), 'Work Schedule',   '/employees/schedule','attendance', 2);
+
+
+-- ============================================
+-- REGIONAL MANAGER BRANCH ASSIGNMENTS
+-- Maps a regional_manager user to the branches they oversee
+-- ============================================
+CREATE TABLE regional_manager_branches (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regional_manager_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    branch_id            UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+    assigned_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(regional_manager_id, branch_id)
+);
+
+CREATE INDEX idx_rm_branches_manager_id ON regional_manager_branches(regional_manager_id);
+CREATE INDEX idx_rm_branches_branch_id  ON regional_manager_branches(branch_id);
 
 
 -- ============================================

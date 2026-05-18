@@ -442,3 +442,58 @@ func (r *Repository) DeleteRolePermission(ctx context.Context, id string) error 
 	_, err := r.db.Exec(ctx, `DELETE FROM role_permissions WHERE id = $1`, id)
 	return err
 }
+
+// =============================================
+// REGIONAL MANAGER BRANCH ASSIGNMENT REPOSITORY
+// =============================================
+
+func (r *Repository) FindRegionalManagerBranches(ctx context.Context, userID string) ([]models.Branch, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT b.id, b.name, b.code, b.address, b.phone, b.email, b.logo_url, b.is_active, b.created_at, b.updated_at
+		 FROM branches b
+		 JOIN regional_manager_branches rmb ON rmb.branch_id = b.id
+		 WHERE rmb.regional_manager_id = $1
+		 ORDER BY b.name ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var branches []models.Branch
+	for rows.Next() {
+		var b models.Branch
+		if err := rows.Scan(
+			&b.ID, &b.Name, &b.Code, &b.Address, &b.Phone,
+			&b.Email, &b.LogoURL, &b.IsActive, &b.CreatedAt, &b.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		branches = append(branches, b)
+	}
+	return branches, nil
+}
+
+func (r *Repository) SetRegionalManagerBranches(ctx context.Context, userID string, branchIDs []string) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
+		`DELETE FROM regional_manager_branches WHERE regional_manager_id = $1`, userID)
+	if err != nil {
+		return err
+	}
+
+	for _, branchID := range branchIDs {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO regional_manager_branches (regional_manager_id, branch_id) VALUES ($1, $2)`,
+			userID, branchID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}

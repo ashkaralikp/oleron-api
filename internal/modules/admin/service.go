@@ -525,3 +525,32 @@ func BuildMenuTree(flatMenus []models.Menu) []models.Menu {
 func parseDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }
+
+// =============================================
+// REGIONAL MANAGER BRANCH ASSIGNMENT SERVICE
+// =============================================
+
+func (s *Service) GetRegionalManagerBranches(ctx context.Context, userID string) ([]models.Branch, error) {
+	user, err := s.repo.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	if user.Role != "regional_manager" {
+		return nil, errors.New("user is not a regional manager")
+	}
+	return s.repo.FindRegionalManagerBranches(ctx, userID)
+}
+
+func (s *Service) SetRegionalManagerBranches(ctx context.Context, userID string, req SetRegionalManagerBranchesRequest) ([]models.Branch, error) {
+	user, err := s.repo.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	if user.Role != "regional_manager" {
+		return nil, errors.New("user is not a regional manager")
+	}
+	if err := s.repo.SetRegionalManagerBranches(ctx, userID, req.BranchIDs); err != nil {
+		return nil, err
+	}
+	return s.repo.FindRegionalManagerBranches(ctx, userID)
+}

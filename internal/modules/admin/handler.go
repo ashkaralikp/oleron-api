@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"rmp-api/internal/middleware"
+	"rmp-api/internal/models"
 	"rmp-api/pkg/response"
 
 	"github.com/go-chi/chi/v5"
@@ -453,4 +454,88 @@ func (h *Handler) DeleteRolePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, map[string]string{"message": "role permission deleted"})
+}
+
+// =============================================
+// REGIONAL MANAGER BRANCH ASSIGNMENT HANDLERS
+// =============================================
+
+func (h *Handler) GetRegionalManagerBranches(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	branches, err := h.service.GetRegionalManagerBranches(r.Context(), id)
+	if err != nil {
+		if err.Error() == "user not found" {
+			response.Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		if err.Error() == "user is not a regional manager" {
+			response.Error(w, http.StatusBadRequest, "user is not a regional manager")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to fetch branches")
+		return
+	}
+
+	response.Success(w, RegionalManagerBranchesResponse{
+		RegionalManagerID: id,
+		Branches:          toBranchResponses(branches),
+	})
+}
+
+func (h *Handler) SetRegionalManagerBranches(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req SetRegionalManagerBranchesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	branches, err := h.service.SetRegionalManagerBranches(r.Context(), id, req)
+	if err != nil {
+		if err.Error() == "user not found" {
+			response.Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		if err.Error() == "user is not a regional manager" {
+			response.Error(w, http.StatusBadRequest, "user is not a regional manager")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to set branches: "+err.Error())
+		return
+	}
+
+	response.Success(w, RegionalManagerBranchesResponse{
+		RegionalManagerID: id,
+		Branches:          toBranchResponses(branches),
+	})
+}
+
+func toBranchResponses(branches []models.Branch) []BranchResponse {
+	result := make([]BranchResponse, 0, len(branches))
+	for _, b := range branches {
+		br := BranchResponse{
+			ID:        b.ID,
+			Name:      b.Name,
+			Code:      b.Code,
+			IsActive:  b.IsActive,
+			CreatedAt: b.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt: b.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+		if b.Address != nil {
+			br.Address = *b.Address
+		}
+		if b.Phone != nil {
+			br.Phone = *b.Phone
+		}
+		if b.Email != nil {
+			br.Email = *b.Email
+		}
+		if b.LogoURL != nil {
+			br.LogoURL = *b.LogoURL
+		}
+		result = append(result, br)
+	}
+	return result
 }
