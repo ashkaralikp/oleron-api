@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"rmp-api/internal/dbscope"
 	"rmp-api/internal/middleware"
 	"rmp-api/internal/models"
 	"rmp-api/pkg/response"
@@ -13,13 +14,15 @@ import (
 )
 
 type Handler struct {
+	db      *pgxpool.Pool
 	service *Service
 }
 
 func NewHandler(db *pgxpool.Pool) *Handler {
-	repo := NewRepository(db)
-	svc := NewService(repo)
-	return &Handler{service: svc}
+	return &Handler{
+		db:      db,
+		service: NewService(NewRepository(db)),
+	}
 }
 
 // =============================================
@@ -203,8 +206,15 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllEmployees(w http.ResponseWriter, r *http.Request) {
 	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
 	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ := r.Context().Value(middleware.UserIDKey).(string)
 
-	employees, err := h.service.GetAllEmployees(r.Context(), role, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	employees, err := h.service.GetAllEmployees(r.Context(), branchIDs)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch employees")
 		return

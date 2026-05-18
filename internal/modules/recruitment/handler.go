@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"rmp-api/internal/dbscope"
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 	"rmp-api/pkg/validator"
@@ -19,6 +20,7 @@ import (
 )
 
 type Handler struct {
+	db        *pgxpool.Pool
 	service   *Service
 	uploadDir string
 	baseURL   string
@@ -26,13 +28,14 @@ type Handler struct {
 
 func NewHandler(db *pgxpool.Pool, uploadDir, baseURL string) *Handler {
 	return &Handler{
+		db:        db,
 		service:   NewService(NewRepository(db)),
 		uploadDir: uploadDir,
 		baseURL:   baseURL,
 	}
 }
 
-func ctx(r *http.Request) (role, branchID, userID string) {
+func ctxVars(r *http.Request) (role, branchID, userID string) {
 	role, _ = r.Context().Value(middleware.UserRoleKey).(string)
 	branchID, _ = r.Context().Value(middleware.UserBranchIDKey).(string)
 	userID, _ = r.Context().Value(middleware.UserIDKey).(string)
@@ -141,8 +144,15 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 
 // GET /recruitment/vacancies
 func (h *Handler) GetAllVacancies(w http.ResponseWriter, r *http.Request) {
-	role, branchID, _ := ctx(r)
-	vacancies, err := h.service.GetAllVacancies(r.Context(), role, branchID)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	vacancies, err := h.service.GetAllVacancies(r.Context(), branchIDs)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch vacancies")
 		return
@@ -153,9 +163,15 @@ func (h *Handler) GetAllVacancies(w http.ResponseWriter, r *http.Request) {
 // GET /recruitment/vacancies/{id}
 func (h *Handler) GetVacancyByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 
-	v, err := h.service.GetVacancyByID(r.Context(), id, role, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	v, err := h.service.GetVacancyByID(r.Context(), id, branchIDs)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -169,7 +185,13 @@ func (h *Handler) GetVacancyByID(w http.ResponseWriter, r *http.Request) {
 
 // POST /recruitment/vacancies
 func (h *Handler) CreateVacancy(w http.ResponseWriter, r *http.Request) {
-	_, branchID, userID := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req CreateVacancyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -181,7 +203,13 @@ func (h *Handler) CreateVacancy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.CreateVacancy(r.Context(), branchID, userID, req)
+	targetBranch := branchID
+	if !dbscope.ContainsBranch(branchIDs, targetBranch) {
+		response.Error(w, http.StatusForbidden, "not authorized for this branch")
+		return
+	}
+
+	v, err := h.service.CreateVacancy(r.Context(), targetBranch, userID, req)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to create vacancy")
 		return
@@ -192,7 +220,13 @@ func (h *Handler) CreateVacancy(w http.ResponseWriter, r *http.Request) {
 // PUT /recruitment/vacancies/{id}
 func (h *Handler) UpdateVacancy(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req UpdateVacancyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -204,7 +238,7 @@ func (h *Handler) UpdateVacancy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.UpdateVacancy(r.Context(), id, role, branchID, req)
+	v, err := h.service.UpdateVacancy(r.Context(), id, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -220,7 +254,13 @@ func (h *Handler) UpdateVacancy(w http.ResponseWriter, r *http.Request) {
 // PATCH /recruitment/vacancies/{id}/status
 func (h *Handler) UpdateVacancyStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req UpdateVacancyStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -232,7 +272,7 @@ func (h *Handler) UpdateVacancyStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.UpdateVacancyStatus(r.Context(), id, role, branchID, req)
+	v, err := h.service.UpdateVacancyStatus(r.Context(), id, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -248,9 +288,15 @@ func (h *Handler) UpdateVacancyStatus(w http.ResponseWriter, r *http.Request) {
 // DELETE /recruitment/vacancies/{id}
 func (h *Handler) DeleteVacancy(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 
-	if err := h.service.DeleteVacancy(r.Context(), id, role, branchID); err != nil {
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if err := h.service.DeleteVacancy(r.Context(), id, branchIDs); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -271,7 +317,13 @@ func (h *Handler) DeleteVacancy(w http.ResponseWriter, r *http.Request) {
 // POST /recruitment/vacancies/{id}/apply/bulk
 func (h *Handler) BulkApply(w http.ResponseWriter, r *http.Request) {
 	vacancyID := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req BulkApplyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -283,7 +335,7 @@ func (h *Handler) BulkApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.BulkApply(r.Context(), vacancyID, role, branchID, req)
+	result, err := h.service.BulkApply(r.Context(), vacancyID, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -301,10 +353,16 @@ func (h *Handler) BulkApply(w http.ResponseWriter, r *http.Request) {
 // GET /recruitment/vacancies/{id}/applications?status=
 func (h *Handler) GetApplicationsByVacancy(w http.ResponseWriter, r *http.Request) {
 	vacancyID := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 	statusFilter := r.URL.Query().Get("status")
 
-	apps, err := h.service.GetApplicationsByVacancy(r.Context(), vacancyID, role, branchID, statusFilter)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	apps, err := h.service.GetApplicationsByVacancy(r.Context(), vacancyID, branchIDs, statusFilter)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -320,9 +378,15 @@ func (h *Handler) GetApplicationsByVacancy(w http.ResponseWriter, r *http.Reques
 // GET /recruitment/applications/{id}
 func (h *Handler) GetApplicationByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 
-	app, err := h.service.GetApplicationByID(r.Context(), id, role, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	app, err := h.service.GetApplicationByID(r.Context(), id, branchIDs)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -337,7 +401,13 @@ func (h *Handler) GetApplicationByID(w http.ResponseWriter, r *http.Request) {
 // PATCH /recruitment/applications/{id}/status
 func (h *Handler) UpdateApplicationStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req UpdateApplicationStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -349,7 +419,7 @@ func (h *Handler) UpdateApplicationStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	app, err := h.service.UpdateApplicationStatus(r.Context(), id, role, branchID, req)
+	app, err := h.service.UpdateApplicationStatus(r.Context(), id, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -365,9 +435,15 @@ func (h *Handler) UpdateApplicationStatus(w http.ResponseWriter, r *http.Request
 // DELETE /recruitment/applications/{id}
 func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 
-	if err := h.service.DeleteApplication(r.Context(), id, role, branchID); err != nil {
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if err := h.service.DeleteApplication(r.Context(), id, branchIDs); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -386,7 +462,13 @@ func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 // POST /recruitment/applications/{id}/interviews
 func (h *Handler) CreateInterview(w http.ResponseWriter, r *http.Request) {
 	applicationID := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req CreateInterviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -398,7 +480,7 @@ func (h *Handler) CreateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	interview, err := h.service.CreateInterview(r.Context(), applicationID, role, branchID, req)
+	interview, err := h.service.CreateInterview(r.Context(), applicationID, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -416,7 +498,13 @@ func (h *Handler) CreateInterview(w http.ResponseWriter, r *http.Request) {
 // PUT /recruitment/interviews/{id}
 func (h *Handler) UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req UpdateInterviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -428,7 +516,7 @@ func (h *Handler) UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	interview, err := h.service.UpdateInterview(r.Context(), id, role, branchID, req)
+	interview, err := h.service.UpdateInterview(r.Context(), id, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -444,9 +532,15 @@ func (h *Handler) UpdateInterview(w http.ResponseWriter, r *http.Request) {
 // DELETE /recruitment/interviews/{id}
 func (h *Handler) DeleteInterview(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
 
-	if err := h.service.DeleteInterview(r.Context(), id, role, branchID); err != nil {
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if err := h.service.DeleteInterview(r.Context(), id, branchIDs); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -465,7 +559,13 @@ func (h *Handler) DeleteInterview(w http.ResponseWriter, r *http.Request) {
 // POST /recruitment/applications/{id}/hire
 func (h *Handler) Hire(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID, _ := ctx(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req HireRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -477,7 +577,7 @@ func (h *Handler) Hire(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Hire(r.Context(), id, role, branchID, req)
+	result, err := h.service.Hire(r.Context(), id, branchIDs, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":

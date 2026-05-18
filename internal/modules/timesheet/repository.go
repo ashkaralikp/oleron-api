@@ -123,20 +123,20 @@ func (r *Repository) GetMine(ctx context.Context, employeeID string, year, month
 	))
 }
 
-func (r *Repository) GetAll(ctx context.Context, role, branchID string, year, month int) ([]TimesheetResponse, error) {
+func (r *Repository) GetAll(ctx context.Context, branchIDs []string, year, month int) ([]TimesheetResponse, error) {
 	var query string
 	var args []any
 
-	if role == "super_admin" {
+	if branchIDs == nil {
 		query = `SELECT` + tsCols + tsJoin + `
 		         WHERE ct.year = $1 AND ct.month = $2
 		         ORDER BY ct.submitted_at DESC`
 		args = append(args, year, month)
 	} else {
 		query = `SELECT` + tsCols + tsJoin + `
-		         WHERE e.branch_id = $1 AND ct.year = $2 AND ct.month = $3
+		         WHERE e.branch_id::text = ANY($1) AND ct.year = $2 AND ct.month = $3
 		         ORDER BY ct.submitted_at DESC`
-		args = append(args, branchID, year, month)
+		args = append(args, branchIDs, year, month)
 	}
 
 	rows, err := r.db.Query(ctx, query, args...)
@@ -183,15 +183,15 @@ func (r *Repository) Review(ctx context.Context, id, status, reviewNote, reviewe
 	return r.GetByID(ctx, id)
 }
 
-func (r *Repository) IsTimesheetInBranch(ctx context.Context, timesheetID, branchID string) (bool, error) {
+func (r *Repository) IsTimesheetInBranches(ctx context.Context, timesheetID string, branchIDs []string) (bool, error) {
 	var exists bool
 	err := r.db.QueryRow(ctx,
 		`SELECT EXISTS(
 		   SELECT 1
 		   FROM consultant_timesheets ct
 		   JOIN employees e ON e.id = ct.employee_id
-		   WHERE ct.id = $1 AND e.branch_id = $2
-		 )`, timesheetID, branchID,
+		   WHERE ct.id = $1 AND e.branch_id::text = ANY($2)
+		 )`, timesheetID, branchIDs,
 	).Scan(&exists)
 	return exists, err
 }

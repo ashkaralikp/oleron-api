@@ -13,8 +13,8 @@ type UpdateCalendarEntryRequest struct {
 
 // CalendarRangeFilter is used for GET /branch-calendar?from=&to=
 type CalendarRangeFilter struct {
-	BranchID string
-	From     string // YYYY-MM-DD
-	To       string // YYYY-MM-DD
-	Type     string // optional: "holiday" or "working_day"
+	BranchIDs []string
+	From      string // YYYY-MM-DD
+	To        string // YYYY-MM-DD
+	Type      string // optional: "holiday" or "working_day"
 }

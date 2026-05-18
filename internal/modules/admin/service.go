@@ -184,12 +184,8 @@ func (s *Service) DeleteUser(ctx context.Context, id string) error {
 // EMPLOYEE SERVICE
 // =============================================
 
-func (s *Service) GetAllEmployees(ctx context.Context, role, branchID string) ([]models.Employee, error) {
-	// super_admin sees all; admin and manager see their branch only
-	if role == "super_admin" {
-		return s.repo.FindAllEmployees(ctx, "")
-	}
-	return s.repo.FindAllEmployees(ctx, branchID)
+func (s *Service) GetAllEmployees(ctx context.Context, branchIDs []string) ([]models.Employee, error) {
+	return s.repo.FindAllEmployees(ctx, branchIDs)
 }
 
 func (s *Service) GetEmployeeByID(ctx context.Context, id string) (*models.Employee, error) {

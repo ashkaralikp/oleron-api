@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"rmp-api/internal/dbscope"
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 	"rmp-api/pkg/validator"
@@ -25,11 +26,12 @@ func parseYearMonth(r *http.Request) (year, month int, ok bool) {
 }
 
 type Handler struct {
+	db   *pgxpool.Pool
 	repo *Repository
 }
 
 func NewHandler(db *pgxpool.Pool) *Handler {
-	return &Handler{repo: NewRepository(db)}
+	return &Handler{db: db, repo: NewRepository(db)}
 }
 
 func ctx(r *http.Request) context.Context { return r.Context() }
@@ -157,11 +159,18 @@ func (h *Handler) GetMine(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, ts)
 }
 
-// GetAll returns timesheets for a given month (branch-scoped for admin/manager).
+// GetAll returns timesheets for a given month (branch-scoped by effective branch access).
 // year and month are optional query params; defaults to the current month.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	role := r.Context().Value(middleware.UserRoleKey).(string)
-	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
+	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ := r.Context().Value(middleware.UserIDKey).(string)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	now := time.Now()
 	year, month := now.Year(), int(now.Month())
@@ -169,7 +178,7 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 		year, month = y, m
 	}
 
-	list, err := h.repo.GetAll(ctx(r), role, branchID, year, month)
+	list, err := h.repo.GetAll(ctx(r), branchIDs, year, month)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch timesheets")
 		return
@@ -180,14 +189,21 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, list)
 }
 
-// GetByID returns a single timesheet; admin/manager are restricted to their branch.
+// GetByID returns a single timesheet; non-super_admin are restricted to their allowed branches.
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role := r.Context().Value(middleware.UserRoleKey).(string)
-	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
+	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ := r.Context().Value(middleware.UserIDKey).(string)
 
-	if role != "super_admin" {
-		ok, err := h.repo.IsTimesheetInBranch(ctx(r), id, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if branchIDs != nil {
+		ok, err := h.repo.IsTimesheetInBranches(ctx(r), id, branchIDs)
 		if err != nil || !ok {
 			response.Error(w, http.StatusNotFound, "timesheet not found")
 			return
@@ -206,12 +222,19 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 // Review lets an admin or manager approve or reject a timesheet.
 func (h *Handler) Review(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role := r.Context().Value(middleware.UserRoleKey).(string)
-	branchID := r.Context().Value(middleware.UserBranchIDKey).(string)
-	reviewerUserID := r.Context().Value(middleware.UserIDKey).(string)
+	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
+	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ := r.Context().Value(middleware.UserIDKey).(string)
+	reviewerUserID := userID
 
-	if role != "super_admin" {
-		ok, err := h.repo.IsTimesheetInBranch(ctx(r), id, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if branchIDs != nil {
+		ok, err := h.repo.IsTimesheetInBranches(ctx(r), id, branchIDs)
 		if err != nil || !ok {
 			response.Error(w, http.StatusNotFound, "timesheet not found")
 			return

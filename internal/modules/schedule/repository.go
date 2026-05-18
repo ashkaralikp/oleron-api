@@ -18,14 +18,14 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
-// FindAll returns all office timings (filtered by branch if branchID is set).
-func (r *Repository) FindAll(ctx context.Context, branchID string) ([]models.OfficeTiming, error) {
+// FindAll returns all office timings (filtered by branch if branchIDs is non-nil).
+func (r *Repository) FindAll(ctx context.Context, branchIDs []string) ([]models.OfficeTiming, error) {
 	query := `SELECT id, branch_id, name, is_active, created_at, updated_at FROM office_timings`
 	args := []any{}
 
-	if branchID != "" {
-		query += ` WHERE branch_id = $1`
-		args = append(args, branchID)
+	if len(branchIDs) > 0 {
+		query += ` WHERE branch_id::text = ANY($1)`
+		args = append(args, branchIDs)
 	}
 	query += ` ORDER BY created_at DESC`
 
@@ -160,8 +160,8 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 }
 
 // Activate sets branches.office_timing_id to the given timing.
-// Verifies the timing belongs to the branch (non-super_admin callers pass their branchID).
-func (r *Repository) Activate(ctx context.Context, timingID, branchID string) error {
+// branchIDs nil = super_admin (no ownership check); otherwise verifies timing belongs to an allowed branch.
+func (r *Repository) Activate(ctx context.Context, timingID string, branchIDs []string) error {
 	var ownerBranchID string
 	err := r.db.QueryRow(ctx,
 		`SELECT branch_id FROM office_timings WHERE id = $1`, timingID,
@@ -169,8 +169,17 @@ func (r *Repository) Activate(ctx context.Context, timingID, branchID string) er
 	if err != nil {
 		return fmt.Errorf("timing not found")
 	}
-	if branchID != "" && ownerBranchID != branchID {
-		return fmt.Errorf("forbidden")
+	if branchIDs != nil {
+		allowed := false
+		for _, id := range branchIDs {
+			if id == ownerBranchID {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return fmt.Errorf("forbidden")
+		}
 	}
 
 	_, err = r.db.Exec(ctx,

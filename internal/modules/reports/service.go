@@ -14,11 +14,9 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetAttendanceReport returns attendance records filtered by role.
-// super_admin sees all branches; admin and manager see their branch only.
-func (s *Service) GetAttendanceReport(ctx context.Context, role, branchID string, f AttendanceFilter) ([]models.Attendance, error) {
-	if role != "super_admin" {
-		f.BranchID = branchID
-	}
+// GetAttendanceReport returns attendance records visible to the caller.
+// nil branchIDs = super_admin = all branches.
+func (s *Service) GetAttendanceReport(ctx context.Context, branchIDs []string, f AttendanceFilter) ([]models.Attendance, error) {
+	f.BranchIDs = branchIDs
 	return s.repo.FindAttendance(ctx, f)
 }

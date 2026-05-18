@@ -76,33 +76,30 @@ func (s *Service) Generate(ctx context.Context, branchID, generatedBy string, re
 	)
 }
 
-// GetAll returns payroll runs scoped by role.
-func (s *Service) GetAll(ctx context.Context, role, branchID string) ([]models.PayrollRun, error) {
-	if role == "super_admin" {
-		return s.repo.FindAllRuns(ctx, "")
-	}
-	return s.repo.FindAllRuns(ctx, branchID)
+// GetAll returns payroll runs visible to the caller (nil branchIDs = super_admin = all).
+func (s *Service) GetAll(ctx context.Context, branchIDs []string) ([]models.PayrollRun, error) {
+	return s.repo.FindAllRuns(ctx, branchIDs)
 }
 
-// GetByID returns a run with items, enforcing branch ownership for non-super_admin.
-func (s *Service) GetByID(ctx context.Context, id, role, branchID string) (*models.PayrollRun, error) {
+// GetByID returns a run with items, enforcing branch membership.
+func (s *Service) GetByID(ctx context.Context, id string, branchIDs []string) (*models.PayrollRun, error) {
 	run, err := s.repo.FindRunByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if role != "super_admin" && run.BranchID != branchID {
+	if !containsBranch(branchIDs, run.BranchID) {
 		return nil, errors.New("forbidden")
 	}
 	return run, nil
 }
 
-// UpdateStatus moves a run to approved or paid, enforcing branch ownership.
-func (s *Service) UpdateStatus(ctx context.Context, id, role, branchID string, req UpdateStatusRequest) (*models.PayrollRun, error) {
+// UpdateStatus moves a run to approved or paid, enforcing branch membership.
+func (s *Service) UpdateStatus(ctx context.Context, id string, branchIDs []string, req UpdateStatusRequest) (*models.PayrollRun, error) {
 	run, err := s.repo.FindRunByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("payroll run not found")
 	}
-	if role != "super_admin" && run.BranchID != branchID {
+	if !containsBranch(branchIDs, run.BranchID) {
 		return nil, errors.New("forbidden")
 	}
 	// Status transitions: draft → approved → paid
@@ -119,18 +116,31 @@ func (s *Service) UpdateStatus(ctx context.Context, id, role, branchID string, r
 }
 
 // Delete removes a draft run. Approved/paid runs cannot be deleted.
-func (s *Service) Delete(ctx context.Context, id, role, branchID string) error {
+func (s *Service) Delete(ctx context.Context, id string, branchIDs []string) error {
 	run, err := s.repo.FindRunByID(ctx, id)
 	if err != nil {
 		return errors.New("payroll run not found")
 	}
-	if role != "super_admin" && run.BranchID != branchID {
+	if !containsBranch(branchIDs, run.BranchID) {
 		return errors.New("forbidden")
 	}
 	if run.Status != "draft" {
 		return errors.New("only draft payroll runs can be deleted")
 	}
 	return s.repo.DeleteRun(ctx, id)
+}
+
+// containsBranch reports whether id is in the allowed set (nil = super_admin = all).
+func containsBranch(branchIDs []string, id string) bool {
+	if branchIDs == nil {
+		return true
+	}
+	for _, b := range branchIDs {
+		if b == id {
+			return true
+		}
+	}
+	return false
 }
 
 func round2(v float64) float64 {

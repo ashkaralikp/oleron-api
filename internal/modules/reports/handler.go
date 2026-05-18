@@ -3,6 +3,7 @@ package reports
 import (
 	"net/http"
 
+	"rmp-api/internal/dbscope"
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 
@@ -10,21 +11,25 @@ import (
 )
 
 type Handler struct {
+	db      *pgxpool.Pool
 	service *Service
 }
 
 func NewHandler(db *pgxpool.Pool) *Handler {
-	repo := NewRepository(db)
-	svc := NewService(repo)
-	return &Handler{service: svc}
+	return &Handler{db: db, service: NewService(NewRepository(db))}
 }
 
-// GetAttendanceReport godoc
 // GET /reports/attendance
-// Query params: date_from, date_to, user_id, status
 func (h *Handler) GetAttendanceReport(w http.ResponseWriter, r *http.Request) {
 	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
 	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ := r.Context().Value(middleware.UserIDKey).(string)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	q := r.URL.Query()
 	filter := AttendanceFilter{
@@ -34,7 +39,7 @@ func (h *Handler) GetAttendanceReport(w http.ResponseWriter, r *http.Request) {
 		Status:   q.Get("status"),
 	}
 
-	records, err := h.service.GetAttendanceReport(r.Context(), role, branchID, filter)
+	records, err := h.service.GetAttendanceReport(r.Context(), branchIDs, filter)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch attendance report")
 		return

@@ -23,9 +23,9 @@ func (r *Repository) FindAll(ctx context.Context, f CalendarRangeFilter) ([]mode
 	args := []any{}
 	n := 1
 
-	if f.BranchID != "" {
-		query += fmt.Sprintf(` AND branch_id = $%d`, n)
-		args = append(args, f.BranchID)
+	if len(f.BranchIDs) > 0 {
+		query += fmt.Sprintf(` AND branch_id::text = ANY($%d)`, n)
+		args = append(args, f.BranchIDs)
 		n++
 	}
 	if f.From != "" {

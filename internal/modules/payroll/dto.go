@@ -1,6 +1,7 @@
 package payroll
 
 type GeneratePayrollRequest struct {
+	BranchID   string  `json:"branch_id"`
 	PeriodFrom string  `json:"period_from" validate:"required"` // YYYY-MM-DD
 	PeriodTo   string  `json:"period_to"   validate:"required"` // YYYY-MM-DD
 	Currency   string  `json:"currency"    validate:"omitempty,len=3"`

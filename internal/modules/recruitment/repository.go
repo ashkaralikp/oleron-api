@@ -62,7 +62,7 @@ func (r *Repository) FindPublicVacancies(ctx context.Context) ([]PublicVacancy, 
 // VACANCIES
 // ─────────────────────────────────────────────
 
-func (r *Repository) FindAllVacancies(ctx context.Context, branchID string) ([]models.Vacancy, error) {
+func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string) ([]models.Vacancy, error) {
 	query := `SELECT v.id, v.branch_id, v.created_by, v.title, v.department,
 	                 v.description, v.requirements, v.positions, v.status, v.deadline,
 	                 v.created_at, v.updated_at,
@@ -70,9 +70,9 @@ func (r *Repository) FindAllVacancies(ctx context.Context, branchID string) ([]m
 	          FROM vacancies v
 	          LEFT JOIN applications a ON a.vacancy_id = v.id`
 	args := []any{}
-	if branchID != "" {
-		query += ` WHERE v.branch_id = $1`
-		args = append(args, branchID)
+	if len(branchIDs) > 0 {
+		query += ` WHERE v.branch_id::text = ANY($1)`
+		args = append(args, branchIDs)
 	}
 	query += ` GROUP BY v.id ORDER BY v.created_at DESC`
 

@@ -174,7 +174,7 @@ func (r *Repository) DeleteUser(ctx context.Context, id string) error {
 // EMPLOYEE REPOSITORY
 // =============================================
 
-func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]models.Employee, error) {
+func (r *Repository) FindAllEmployees(ctx context.Context, branchIDs []string) ([]models.Employee, error) {
 	query := `SELECT e.id, e.user_id, e.branch_id, e.office_timing_id, e.manager_id, e.employee_code,
 		        e.designation, e.employment_type, e.fixed_monthly_salary, e.ot_rate,
 		        e.currency, e.joining_date, e.created_at, e.updated_at,
@@ -183,9 +183,9 @@ func (r *Repository) FindAllEmployees(ctx context.Context, branchID string) ([]m
 		 JOIN users u ON u.id = e.user_id`
 
 	var args []any
-	if branchID != "" {
-		query += ` WHERE e.branch_id = $1`
-		args = append(args, branchID)
+	if len(branchIDs) > 0 {
+		query += ` WHERE e.branch_id::text = ANY($1)`
+		args = append(args, branchIDs)
 	}
 	query += ` ORDER BY e.created_at DESC`
 

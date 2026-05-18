@@ -31,9 +31,9 @@ func (r *Repository) FindAttendance(ctx context.Context, f AttendanceFilter) ([]
 	args := []any{}
 	i := 1
 
-	if f.BranchID != "" {
-		query += fmt.Sprintf(" AND u.branch_id = $%d", i)
-		args = append(args, f.BranchID)
+	if len(f.BranchIDs) > 0 {
+		query += fmt.Sprintf(" AND u.branch_id::text = ANY($%d)", i)
+		args = append(args, f.BranchIDs)
 		i++
 	}
 	if f.DateFrom != "" {

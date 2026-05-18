@@ -29,19 +29,16 @@ func (s *Service) GetPublicVacancies(ctx context.Context) ([]PublicVacancy, erro
 // VACANCIES
 // ─────────────────────────────────────────────
 
-func (s *Service) GetAllVacancies(ctx context.Context, role, branchID string) ([]models.Vacancy, error) {
-	if role == "super_admin" {
-		return s.repo.FindAllVacancies(ctx, "")
-	}
-	return s.repo.FindAllVacancies(ctx, branchID)
+func (s *Service) GetAllVacancies(ctx context.Context, branchIDs []string) ([]models.Vacancy, error) {
+	return s.repo.FindAllVacancies(ctx, branchIDs)
 }
 
-func (s *Service) GetVacancyByID(ctx context.Context, id, role, branchID string) (*models.Vacancy, error) {
+func (s *Service) GetVacancyByID(ctx context.Context, id string, branchIDs []string) (*models.Vacancy, error) {
 	v, err := s.repo.FindVacancyByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("vacancy not found")
 	}
-	if role != "super_admin" && v.BranchID != branchID {
+	if !containsBranch(branchIDs, v.BranchID) {
 		return nil, errors.New("forbidden")
 	}
 	return v, nil
@@ -51,26 +48,26 @@ func (s *Service) CreateVacancy(ctx context.Context, branchID, createdBy string,
 	return s.repo.CreateVacancy(ctx, branchID, createdBy, req)
 }
 
-func (s *Service) UpdateVacancy(ctx context.Context, id, role, branchID string, req UpdateVacancyRequest) (*models.Vacancy, error) {
-	if err := s.guardVacancy(ctx, id, role, branchID); err != nil {
+func (s *Service) UpdateVacancy(ctx context.Context, id string, branchIDs []string, req UpdateVacancyRequest) (*models.Vacancy, error) {
+	if err := s.guardVacancy(ctx, id, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.UpdateVacancy(ctx, id, req)
 }
 
-func (s *Service) UpdateVacancyStatus(ctx context.Context, id, role, branchID string, req UpdateVacancyStatusRequest) (*models.Vacancy, error) {
-	if err := s.guardVacancy(ctx, id, role, branchID); err != nil {
+func (s *Service) UpdateVacancyStatus(ctx context.Context, id string, branchIDs []string, req UpdateVacancyStatusRequest) (*models.Vacancy, error) {
+	if err := s.guardVacancy(ctx, id, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.UpdateVacancyStatus(ctx, id, req.Status)
 }
 
-func (s *Service) DeleteVacancy(ctx context.Context, id, role, branchID string) error {
+func (s *Service) DeleteVacancy(ctx context.Context, id string, branchIDs []string) error {
 	v, err := s.repo.FindVacancyByID(ctx, id)
 	if err != nil {
 		return errors.New("vacancy not found")
 	}
-	if role != "super_admin" && v.BranchID != branchID {
+	if !containsBranch(branchIDs, v.BranchID) {
 		return errors.New("forbidden")
 	}
 	if v.Status != "draft" {
@@ -79,16 +76,15 @@ func (s *Service) DeleteVacancy(ctx context.Context, id, role, branchID string) 
 	return s.repo.DeleteVacancy(ctx, id)
 }
 
-// guardVacancy checks branch ownership for non-super_admin.
-func (s *Service) guardVacancy(ctx context.Context, id, role, branchID string) error {
-	if role == "super_admin" {
+func (s *Service) guardVacancy(ctx context.Context, id string, branchIDs []string) error {
+	if branchIDs == nil {
 		return nil
 	}
 	vBranchID, err := s.repo.FindVacancyBranchID(ctx, id)
 	if err != nil {
 		return errors.New("vacancy not found")
 	}
-	if vBranchID != branchID {
+	if !containsBranch(branchIDs, vBranchID) {
 		return errors.New("forbidden")
 	}
 	return nil
@@ -98,15 +94,12 @@ func (s *Service) guardVacancy(ctx context.Context, id, role, branchID string) e
 // APPLICATIONS
 // ─────────────────────────────────────────────
 
-// Apply is the public endpoint — no role or branch ownership check.
 func (s *Service) Apply(ctx context.Context, vacancyID string, req ApplyRequest) (*models.Application, error) {
 	return s.repo.CreateApplication(ctx, vacancyID, req)
 }
 
-// BulkApply is the admin endpoint — processes each applicant independently
-// so a failure on one row does not abort the rest.
-func (s *Service) BulkApply(ctx context.Context, vacancyID, role, branchID string, req BulkApplyRequest) (*BulkApplyResult, error) {
-	if err := s.guardVacancy(ctx, vacancyID, role, branchID); err != nil {
+func (s *Service) BulkApply(ctx context.Context, vacancyID string, branchIDs []string, req BulkApplyRequest) (*BulkApplyResult, error) {
+	if err := s.guardVacancy(ctx, vacancyID, branchIDs); err != nil {
 		return nil, err
 	}
 	result := &BulkApplyResult{Total: len(req.Applications)}
@@ -128,44 +121,43 @@ func (s *Service) BulkApply(ctx context.Context, vacancyID, role, branchID strin
 	return result, nil
 }
 
-func (s *Service) GetApplicationsByVacancy(ctx context.Context, vacancyID, role, branchID, statusFilter string) ([]models.Application, error) {
-	if err := s.guardVacancy(ctx, vacancyID, role, branchID); err != nil {
+func (s *Service) GetApplicationsByVacancy(ctx context.Context, vacancyID string, branchIDs []string, statusFilter string) ([]models.Application, error) {
+	if err := s.guardVacancy(ctx, vacancyID, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.FindApplicationsByVacancy(ctx, vacancyID, statusFilter)
 }
 
-func (s *Service) GetApplicationByID(ctx context.Context, id, role, branchID string) (*models.Application, error) {
-	if err := s.guardApplication(ctx, id, role, branchID); err != nil {
+func (s *Service) GetApplicationByID(ctx context.Context, id string, branchIDs []string) (*models.Application, error) {
+	if err := s.guardApplication(ctx, id, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.FindApplicationByID(ctx, id)
 }
 
-func (s *Service) UpdateApplicationStatus(ctx context.Context, id, role, branchID string, req UpdateApplicationStatusRequest) (*models.Application, error) {
-	if err := s.guardApplication(ctx, id, role, branchID); err != nil {
+func (s *Service) UpdateApplicationStatus(ctx context.Context, id string, branchIDs []string, req UpdateApplicationStatusRequest) (*models.Application, error) {
+	if err := s.guardApplication(ctx, id, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.UpdateApplicationStatus(ctx, id, req.Status, req.Notes)
 }
 
-func (s *Service) DeleteApplication(ctx context.Context, id, role, branchID string) error {
-	if err := s.guardApplication(ctx, id, role, branchID); err != nil {
+func (s *Service) DeleteApplication(ctx context.Context, id string, branchIDs []string) error {
+	if err := s.guardApplication(ctx, id, branchIDs); err != nil {
 		return err
 	}
 	return s.repo.DeleteApplication(ctx, id)
 }
 
-// guardApplication resolves the vacancy's branch_id from the application and checks ownership.
-func (s *Service) guardApplication(ctx context.Context, id, role, branchID string) error {
-	if role == "super_admin" {
+func (s *Service) guardApplication(ctx context.Context, id string, branchIDs []string) error {
+	if branchIDs == nil {
 		return nil
 	}
 	vBranchID, err := s.repo.FindVacancyBranchIDByApplicationID(ctx, id)
 	if err != nil {
 		return errors.New("application not found")
 	}
-	if vBranchID != branchID {
+	if !containsBranch(branchIDs, vBranchID) {
 		return errors.New("forbidden")
 	}
 	return nil
@@ -175,8 +167,8 @@ func (s *Service) guardApplication(ctx context.Context, id, role, branchID strin
 // INTERVIEWS
 // ─────────────────────────────────────────────
 
-func (s *Service) CreateInterview(ctx context.Context, applicationID, role, branchID string, req CreateInterviewRequest) (*models.Interview, error) {
-	if err := s.guardApplication(ctx, applicationID, role, branchID); err != nil {
+func (s *Service) CreateInterview(ctx context.Context, applicationID string, branchIDs []string, req CreateInterviewRequest) (*models.Interview, error) {
+	if err := s.guardApplication(ctx, applicationID, branchIDs); err != nil {
 		return nil, err
 	}
 	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
@@ -186,30 +178,29 @@ func (s *Service) CreateInterview(ctx context.Context, applicationID, role, bran
 	return s.repo.CreateInterview(ctx, applicationID, req.InterviewerID, scheduledAt, req.Type, req.Location)
 }
 
-func (s *Service) UpdateInterview(ctx context.Context, id, role, branchID string, req UpdateInterviewRequest) (*models.Interview, error) {
-	if err := s.guardInterview(ctx, id, role, branchID); err != nil {
+func (s *Service) UpdateInterview(ctx context.Context, id string, branchIDs []string, req UpdateInterviewRequest) (*models.Interview, error) {
+	if err := s.guardInterview(ctx, id, branchIDs); err != nil {
 		return nil, err
 	}
 	return s.repo.UpdateInterview(ctx, id, req)
 }
 
-func (s *Service) DeleteInterview(ctx context.Context, id, role, branchID string) error {
-	if err := s.guardInterview(ctx, id, role, branchID); err != nil {
+func (s *Service) DeleteInterview(ctx context.Context, id string, branchIDs []string) error {
+	if err := s.guardInterview(ctx, id, branchIDs); err != nil {
 		return err
 	}
 	return s.repo.DeleteInterview(ctx, id)
 }
 
-// guardInterview resolves the vacancy's branch_id through interview → application → vacancy.
-func (s *Service) guardInterview(ctx context.Context, id, role, branchID string) error {
-	if role == "super_admin" {
+func (s *Service) guardInterview(ctx context.Context, id string, branchIDs []string) error {
+	if branchIDs == nil {
 		return nil
 	}
 	vBranchID, err := s.repo.FindVacancyBranchIDByInterviewID(ctx, id)
 	if err != nil {
 		return errors.New("interview not found")
 	}
-	if vBranchID != branchID {
+	if !containsBranch(branchIDs, vBranchID) {
 		return errors.New("forbidden")
 	}
 	return nil
@@ -219,20 +210,25 @@ func (s *Service) guardInterview(ctx context.Context, id, role, branchID string)
 // HIRE
 // ─────────────────────────────────────────────
 
-func (s *Service) Hire(ctx context.Context, applicationID, role, branchID string, req HireRequest) (*HireResult, error) {
-	// Resolve target branch: super_admin uses the vacancy's branch; others use their own.
+func (s *Service) Hire(ctx context.Context, applicationID string, branchIDs []string, req HireRequest) (*HireResult, error) {
 	var targetBranchID string
-	if role == "super_admin" {
+	if branchIDs == nil {
+		// super_admin: use the vacancy's branch
 		vBranchID, err := s.repo.FindVacancyBranchIDByApplicationID(ctx, applicationID)
 		if err != nil {
 			return nil, errors.New("application not found")
 		}
 		targetBranchID = vBranchID
 	} else {
-		if err := s.guardApplication(ctx, applicationID, role, branchID); err != nil {
+		if err := s.guardApplication(ctx, applicationID, branchIDs); err != nil {
 			return nil, err
 		}
-		targetBranchID = branchID
+		// Use the vacancy's branch (so we always assign to the correct branch)
+		vBranchID, err := s.repo.FindVacancyBranchIDByApplicationID(ctx, applicationID)
+		if err != nil {
+			return nil, errors.New("application not found")
+		}
+		targetBranchID = vBranchID
 	}
 
 	passwordHash, err := hash.HashPassword(req.TempPassword)
@@ -241,4 +237,16 @@ func (s *Service) Hire(ctx context.Context, applicationID, role, branchID string
 	}
 
 	return s.repo.HireApplicant(ctx, applicationID, targetBranchID, passwordHash, req)
+}
+
+func containsBranch(branchIDs []string, id string) bool {
+	if branchIDs == nil {
+		return true
+	}
+	for _, b := range branchIDs {
+		if b == id {
+			return true
+		}
+	}
+	return false
 }

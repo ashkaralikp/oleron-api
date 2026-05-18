@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"rmp-api/internal/dbscope"
 	"rmp-api/internal/middleware"
 	"rmp-api/pkg/response"
 	"rmp-api/pkg/validator"
@@ -13,34 +14,39 @@ import (
 )
 
 type Handler struct {
+	db      *pgxpool.Pool
 	service *Service
 }
 
 func NewHandler(db *pgxpool.Pool) *Handler {
-	repo := NewRepository(db)
-	svc := NewService(repo)
-	return &Handler{service: svc}
+	return &Handler{db: db, service: NewService(NewRepository(db))}
 }
 
-func roleAndBranch(r *http.Request) (string, string) {
-	role, _ := r.Context().Value(middleware.UserRoleKey).(string)
-	branchID, _ := r.Context().Value(middleware.UserBranchIDKey).(string)
-	return role, branchID
+func ctxVars(r *http.Request) (role, branchID, userID string) {
+	role, _ = r.Context().Value(middleware.UserRoleKey).(string)
+	branchID, _ = r.Context().Value(middleware.UserBranchIDKey).(string)
+	userID, _ = r.Context().Value(middleware.UserIDKey).(string)
+	return
 }
 
 // GET /calendar/branch-calendar
-// Query params: from, to, type
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	role, branchID := roleAndBranch(r)
-	q := r.URL.Query()
+	role, branchID, userID := ctxVars(r)
 
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	q := r.URL.Query()
 	filter := CalendarRangeFilter{
 		From: q.Get("from"),
 		To:   q.Get("to"),
 		Type: q.Get("type"),
 	}
 
-	entries, err := h.service.GetAll(r.Context(), role, branchID, filter)
+	entries, err := h.service.GetAll(r.Context(), branchIDs, filter)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch calendar entries")
 		return
@@ -51,9 +57,15 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 // GET /calendar/branch-calendar/{id}
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID := roleAndBranch(r)
+	role, branchID, userID := ctxVars(r)
 
-	entry, err := h.service.GetByID(r.Context(), id, role, branchID)
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	entry, err := h.service.GetByID(r.Context(), id, branchIDs)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -67,7 +79,13 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 // POST /calendar/branch-calendar
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	role, branchID := roleAndBranch(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req CreateCalendarEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -79,7 +97,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.Create(r.Context(), role, branchID, req)
+	// Use home branch by default; validate against allowed branches.
+	targetBranch := branchID
+	if !dbscope.ContainsBranch(branchIDs, targetBranch) {
+		response.Error(w, http.StatusForbidden, "not authorized for this branch")
+		return
+	}
+
+	entry, err := h.service.Create(r.Context(), targetBranch, req)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to create calendar entry")
 		return
@@ -90,7 +115,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 // PUT /calendar/branch-calendar/{id}
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID := roleAndBranch(r)
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
 
 	var req UpdateCalendarEntryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -102,7 +133,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.Update(r.Context(), id, role, branchID, req)
+	entry, err := h.service.Update(r.Context(), id, branchIDs, req)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -117,9 +148,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 // DELETE /calendar/branch-calendar/{id}
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	role, branchID := roleAndBranch(r)
+	role, branchID, userID := ctxVars(r)
 
-	if err := h.service.Delete(r.Context(), id, role, branchID); err != nil {
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	if err := h.service.Delete(r.Context(), id, branchIDs); err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
 			return

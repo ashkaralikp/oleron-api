@@ -167,14 +167,14 @@ func (r *Repository) CreatePayrollRun(
 	return &run, nil
 }
 
-// FindAllRuns returns payroll runs for a branch (or all branches for super_admin).
-func (r *Repository) FindAllRuns(ctx context.Context, branchID string) ([]models.PayrollRun, error) {
+// FindAllRuns returns payroll runs visible to the caller (nil branchIDs = all).
+func (r *Repository) FindAllRuns(ctx context.Context, branchIDs []string) ([]models.PayrollRun, error) {
 	query := `SELECT id, branch_id, period_from, period_to, generated_by, status, total_amount, currency, notes, created_at, updated_at
 	          FROM payroll_runs`
 	args := []any{}
-	if branchID != "" {
-		query += ` WHERE branch_id = $1`
-		args = append(args, branchID)
+	if len(branchIDs) > 0 {
+		query += ` WHERE branch_id::text = ANY($1)`
+		args = append(args, branchIDs)
 	}
 	query += ` ORDER BY created_at DESC`
 
