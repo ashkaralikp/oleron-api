@@ -2,17 +2,22 @@ package contact
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 
 	"rmp-api/internal/models"
+	"rmp-api/pkg/email"
 )
 
 type Service struct {
-	repo *Repository
+	repo   *Repository
+	mailer *email.Sender
+	mailTo string
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, mailer *email.Sender, mailTo string) *Service {
+	return &Service{repo: repo, mailer: mailer, mailTo: mailTo}
 }
 
 func (s *Service) CreateSubmission(ctx context.Context, req CreateSubmissionRequest, ipAddress, userAgent string) (*models.ContactSubmission, error) {
@@ -33,7 +38,50 @@ func (s *Service) CreateSubmission(ctx context.Context, req CreateSubmissionRequ
 		normalizedUserAgent = &ua
 	}
 
-	return s.repo.CreateSubmission(ctx, req, normalizedIP, normalizedUserAgent)
+	submission, err := s.repo.CreateSubmission(ctx, req, normalizedIP, normalizedUserAgent)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.mailer != nil && s.mailTo != "" {
+		go func() {
+			if emailErr := s.sendNotification(submission); emailErr != nil {
+				log.Printf("contact email notification failed: %v", emailErr)
+			}
+		}()
+	}
+
+	return submission, nil
+}
+
+func (s *Service) sendNotification(sub *models.ContactSubmission) error {
+	company := "—"
+	if sub.Company != nil {
+		company = *sub.Company
+	}
+	phone := "—"
+	if sub.Phone != nil {
+		phone = *sub.Phone
+	}
+	category := "—"
+	if sub.Category != nil {
+		category = *sub.Category
+	}
+
+	body := fmt.Sprintf(
+		"New inquiry received on the Oleron website.\r\n\r\n"+
+			"Name:     %s\r\n"+
+			"Company:  %s\r\n"+
+			"Email:    %s\r\n"+
+			"Phone:    %s\r\n"+
+			"Category: %s\r\n\r\n"+
+			"Message:\r\n%s\r\n\r\n"+
+			"---\r\nOleron Website",
+		sub.Name, company, sub.Email, phone, category, sub.Message,
+	)
+
+	subject := fmt.Sprintf("New Inquiry from %s", sub.Name)
+	return s.mailer.Send(s.mailTo, subject, body)
 }
 
 func (s *Service) GetAll(ctx context.Context, statusFilter string) ([]*models.ContactSubmission, error) {

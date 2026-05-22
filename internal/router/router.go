@@ -17,6 +17,7 @@ import (
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
 	"rmp-api/internal/modules/timesheet"
+	"rmp-api/pkg/email"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -43,7 +44,17 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
-		contactHandler := contact.NewHandler(db)
+		var mailer *email.Sender
+		if cfg.SMTPUser != "" && cfg.SMTPPass != "" {
+			mailer = email.NewSender(email.Config{
+				Host:     cfg.SMTPHost,
+				Port:     cfg.SMTPPort,
+				Username: cfg.SMTPUser,
+				Password: cfg.SMTPPass,
+				From:     cfg.SMTPFrom,
+			})
+		}
+		contactHandler := contact.NewHandler(db, mailer, cfg.SMTPTo)
 		r.With(middleware.RateLimit(5, time.Minute)).Post("/contact-submissions", contactHandler.CreateSubmission)
 
 		// Public routes (mobile app with API key)

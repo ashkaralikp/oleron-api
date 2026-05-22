@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"rmp-api/internal/middleware"
+	"rmp-api/pkg/email"
 	"rmp-api/pkg/response"
 	"rmp-api/pkg/validator"
 
@@ -16,8 +17,8 @@ type Handler struct {
 	service *Service
 }
 
-func NewHandler(db *pgxpool.Pool) *Handler {
-	return &Handler{service: NewService(NewRepository(db))}
+func NewHandler(db *pgxpool.Pool, mailer *email.Sender, mailTo string) *Handler {
+	return &Handler{service: NewService(NewRepository(db), mailer, mailTo)}
 }
 
 func (h *Handler) CreateSubmission(w http.ResponseWriter, r *http.Request) {

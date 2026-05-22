@@ -18,6 +18,12 @@ type Config struct {
 	Environment string
 	UploadDir   string
 	BaseURL     string
+	SMTPHost    string
+	SMTPPort    string
+	SMTPUser    string
+	SMTPPass    string
+	SMTPFrom    string
+	SMTPTo      string
 }
 
 func Load() *Config {
@@ -34,6 +40,12 @@ func Load() *Config {
 		Environment: getEnv("ENV", "development"),
 		UploadDir:   getEnv("UPLOAD_DIR", "./uploads"),
 		BaseURL:     getEnv("BASE_URL", "http://localhost:8080"),
+		SMTPHost:    getEnv("SMTP_HOST", "smtpout.secureserver.net"),
+		SMTPPort:    getEnv("SMTP_PORT", "587"),
+		SMTPUser:    getEnv("SMTP_USER", ""),
+		SMTPPass:    getEnv("SMTP_PASS", ""),
+		SMTPFrom:    getEnv("SMTP_FROM", ""),
+		SMTPTo:      getEnv("SMTP_TO", ""),
 	}
 }
 
