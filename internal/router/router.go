@@ -17,6 +17,7 @@ import (
 	"rmp-api/internal/modules/reports"
 	"rmp-api/internal/modules/schedule"
 	"rmp-api/internal/modules/timesheet"
+	"rmp-api/internal/modules/workorder"
 	"rmp-api/pkg/email"
 
 	"github.com/go-chi/chi/v5"
@@ -83,6 +84,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			payrollHandler := payroll.NewHandler(db)
 			recruitmentHandler := recruitment.NewHandler(db, cfg.UploadDir, cfg.BaseURL)
 			timesheetHandler := timesheet.NewHandler(db)
+			workOrderHandler := workorder.NewHandler(db, cfg.UploadDir, cfg.BaseURL)
 
 			// Timesheet estimate (all authenticated roles)
 			r.Post("/timesheets/estimate", timesheetHandler.Estimate)
@@ -127,6 +129,19 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Get("/{id}", payrollHandler.GetByID)
 				r.Patch("/{id}/status", payrollHandler.UpdateStatus)
 				r.Delete("/{id}", payrollHandler.Delete)
+			})
+
+			// Work order routes
+			r.Route("/work-orders", func(r chi.Router) {
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
+				r.With(middleware.RequireRole("regional_manager")).Post("/assets", workOrderHandler.UpsertAsset)
+				r.With(middleware.RequireRole("regional_manager")).Get("/assets/me", workOrderHandler.GetMyAsset)
+				r.Get("/", workOrderHandler.GetAll)
+				r.With(middleware.RequireRole("super_admin", "regional_manager")).Post("/", workOrderHandler.Create)
+				r.Get("/{id}", workOrderHandler.GetByID)
+				r.With(middleware.RequireRole("super_admin", "regional_manager")).Put("/{id}", workOrderHandler.Update)
+				r.With(middleware.RequireRole("super_admin", "regional_manager")).Patch("/{id}/status", workOrderHandler.UpdateStatus)
+				r.With(middleware.RequireRole("super_admin", "regional_manager")).Delete("/{id}", workOrderHandler.Delete)
 			})
 
 			// Attendance routes (all authenticated roles)

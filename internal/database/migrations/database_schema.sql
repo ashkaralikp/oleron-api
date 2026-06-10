@@ -248,6 +248,12 @@ CREATE TYPE payroll_status AS ENUM (
     'paid'      -- Payment processed
 );
 
+CREATE TYPE work_order_status AS ENUM (
+    'draft',     -- Created but not finalized
+    'issued',    -- Ready to share / generate PDF
+    'cancelled'  -- Cancelled after creation
+);
+
 CREATE TABLE payroll_runs (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     branch_id       UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
@@ -443,18 +449,21 @@ INSERT INTO role_permissions (role, resource, can_view, can_create, can_edit, ca
 ('super_admin',  'employee',    TRUE, TRUE,  TRUE,  TRUE),
 ('super_admin',  'attendance',  TRUE, TRUE,  TRUE,  TRUE),
 ('super_admin',  'payroll',     TRUE, TRUE,  TRUE,  TRUE),
+('super_admin',  'work_order',  TRUE, TRUE,  TRUE,  TRUE),
 ('super_admin',  'report',      TRUE, TRUE,  TRUE,  TRUE),
 ('super_admin',  'settings',    TRUE, TRUE,  TRUE,  TRUE),
 
 ('regional_manager', 'employee',    TRUE, TRUE,  TRUE,  TRUE),
 ('regional_manager', 'attendance',  TRUE, TRUE,  TRUE,  TRUE),
 ('regional_manager', 'payroll',     TRUE, TRUE,  FALSE, FALSE),
+('regional_manager', 'work_order',  TRUE, TRUE,  TRUE,  TRUE),
 ('regional_manager', 'report',      TRUE, FALSE, FALSE, FALSE),
 ('regional_manager', 'settings',    TRUE, TRUE,  TRUE,  FALSE),
 
 ('manager',      'employee',    TRUE, FALSE, FALSE, FALSE),
 ('manager',      'attendance',  TRUE, TRUE,  TRUE,  FALSE),
 ('manager',      'payroll',     TRUE, FALSE, FALSE, FALSE),
+('manager',      'work_order',  TRUE, FALSE, FALSE, FALSE),
 ('manager',      'report',      TRUE, FALSE, FALSE, FALSE),
 
 ('employee',     'attendance',  TRUE, FALSE, FALSE, FALSE),
@@ -470,8 +479,9 @@ INSERT INTO menus (id, parent_id, label, path, resource, sort_order) VALUES
 (uuid_generate_v4(), NULL, 'Employees',  NULL,          'employee',   2),
 (uuid_generate_v4(), NULL, 'Attendance', '/attendance', 'attendance', 3),
 (uuid_generate_v4(), NULL, 'Payroll',    '/payroll',    'payroll',    4),
-(uuid_generate_v4(), NULL, 'Reports',    '/reports',    'report',     5),
-(uuid_generate_v4(), NULL, 'Settings',   '/settings',   'settings',   6);
+(uuid_generate_v4(), NULL, 'Work Orders','/work-orders','work_order', 5),
+(uuid_generate_v4(), NULL, 'Reports',    '/reports',    'report',     6),
+(uuid_generate_v4(), NULL, 'Settings',   '/settings',   'settings',   7);
 
 -- Sub menus for Employees
 INSERT INTO menus (parent_id, label, path, resource, sort_order) VALUES
@@ -493,6 +503,88 @@ CREATE TABLE regional_manager_branches (
 
 CREATE INDEX idx_rm_branches_manager_id ON regional_manager_branches(regional_manager_id);
 CREATE INDEX idx_rm_branches_branch_id  ON regional_manager_branches(branch_id);
+
+
+-- ============================================
+-- WORK ORDER MODULE
+-- Regional managers upload seal/signature assets and create work orders.
+-- Signature/seal fields are snapshotted on each work order for stable PDFs.
+-- ============================================
+
+CREATE TABLE regional_manager_work_order_assets (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regional_manager_id  UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    signer_name          VARCHAR(150) NOT NULL,
+    signer_title         VARCHAR(100),
+    signature_url        TEXT NOT NULL,
+    seal_url             TEXT NOT NULL,
+    uploaded_by          UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at           TIMESTAMPTZ DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE work_orders (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id             UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    created_by            UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    manager_asset_id      UUID REFERENCES regional_manager_work_order_assets(id) ON DELETE SET NULL,
+    work_order_no         VARCHAR(30) NOT NULL,
+    work_order_date       DATE NOT NULL DEFAULT CURRENT_DATE,
+    company_name          VARCHAR(150) NOT NULL DEFAULT 'Oleron.Inc',
+    company_address       TEXT,
+    company_phone         VARCHAR(50),
+    company_fax           VARCHAR(50),
+    company_email         VARCHAR(150),
+    company_website       VARCHAR(150),
+    company_logo_url      TEXT,
+    bill_to_name          VARCHAR(150) NOT NULL,
+    bill_to_address       TEXT,
+    bill_to_email         VARCHAR(150),
+    job_details           TEXT NOT NULL,
+    signer_name           VARCHAR(150),
+    signer_title          VARCHAR(100),
+    signature_url         TEXT,
+    seal_url              TEXT,
+    currency              VARCHAR(3) NOT NULL DEFAULT 'USD',
+    sub_total_amount      NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (sub_total_amount >= 0),
+    total_amount          NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+    status                work_order_status NOT NULL DEFAULT 'draft',
+    pdf_url               TEXT,
+    issued_at             TIMESTAMPTZ,
+    created_at            TIMESTAMPTZ DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(branch_id, work_order_no)
+);
+
+CREATE TABLE work_order_items (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id   UUID NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+    line_no         SMALLINT NOT NULL CHECK (line_no > 0),
+    description     TEXT NOT NULL,
+    amount          NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(work_order_id, line_no)
+);
+
+CREATE INDEX idx_rm_work_order_assets_manager_id ON regional_manager_work_order_assets(regional_manager_id);
+CREATE INDEX idx_work_orders_branch_id ON work_orders(branch_id);
+CREATE INDEX idx_work_orders_created_by ON work_orders(created_by);
+CREATE INDEX idx_work_orders_status ON work_orders(status);
+CREATE INDEX idx_work_orders_date ON work_orders(work_order_date);
+CREATE INDEX idx_work_order_items_work_order_id ON work_order_items(work_order_id);
+
+CREATE TRIGGER trg_rm_work_order_assets_updated_at
+    BEFORE UPDATE ON regional_manager_work_order_assets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_orders_updated_at
+    BEFORE UPDATE ON work_orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_order_items_updated_at
+    BEFORE UPDATE ON work_order_items
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 
 -- ============================================
@@ -617,6 +709,10 @@ CREATE TRIGGER trg_interviews_updated_at
 --
 -- role_permissions  → What each role (super_admin/admin/manager/employee) can do per resource
 -- menus             → Sidebar navigation with tree structure (filtered by role_permissions)
+--
+-- regional_manager_work_order_assets → Uploaded manager signature/seal used for work orders
+-- work_orders       → Work order header, bill-to, job, totals, signer snapshot, PDF URL
+--     └── work_order_items → Work order line items (description, amount)
 --
 -- vacancies         → Job postings per branch (title, JD, openings, status)
 --     └── applications → Candidates who applied (CV, status: applied → shortlisted → hired/rejected)
