@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"rmp-api/internal/config"
@@ -13,7 +14,7 @@ import (
 func Connect(cfg *config.Config) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName,
+		url.QueryEscape(cfg.DBUser), url.QueryEscape(cfg.DBPassword), cfg.DBHost, cfg.DBPort, cfg.DBName,
 	)
 
 	poolCfg, err := pgxpool.ParseConfig(dsn)
