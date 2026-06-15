@@ -6,6 +6,10 @@ Go REST API for the Oleron Resource Management Platform.
 
 - `GET /health`
 
+## API docs
+
+- [Work Order Invoice API](docs/workorder-invoice-api.md)
+
 Example response:
 
 ```json

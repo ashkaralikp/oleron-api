@@ -254,6 +254,39 @@ CREATE TYPE work_order_status AS ENUM (
     'cancelled'  -- Cancelled after creation
 );
 
+CREATE TYPE invoice_status AS ENUM (
+    'draft',      -- Created but not finalized
+    'issued',     -- Sent/generated for the customer
+    'cancelled',  -- Cancelled before payment completion
+    'void'        -- Voided after issue for audit trail
+);
+
+CREATE TYPE invoice_payment_status AS ENUM (
+    'unpaid',         -- No confirmed payment yet
+    'partially_paid', -- Confirmed payments are less than total
+    'paid',           -- Confirmed payments cover the invoice total
+    'overpaid',       -- Confirmed payments exceed the invoice total
+    'refunded'        -- Invoice has been fully refunded
+);
+
+CREATE TYPE invoice_payment_method AS ENUM (
+    'bank_transfer',
+    'cash',
+    'cheque',
+    'credit_card',
+    'debit_card',
+    'upi',
+    'other'
+);
+
+CREATE TYPE invoice_payment_record_status AS ENUM (
+    'pending',   -- Added but not verified
+    'confirmed', -- Verified/accepted
+    'failed',    -- Payment failed
+    'reversed',  -- Chargeback/refund/reversal
+    'rejected'   -- Uploaded proof or payment claim rejected
+);
+
 CREATE TABLE payroll_runs (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     branch_id       UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
@@ -567,12 +600,171 @@ CREATE TABLE work_order_items (
     UNIQUE(work_order_id, line_no)
 );
 
+CREATE TABLE work_order_invoices (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_order_id         UUID NOT NULL REFERENCES work_orders(id) ON DELETE RESTRICT,
+    branch_id             UUID NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
+    created_by            UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    invoice_no            VARCHAR(40) NOT NULL,
+    invoice_date          DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date              DATE,
+    invoice_title         VARCHAR(100) NOT NULL DEFAULT 'EXPORT INVOICE',
+    supply_note           TEXT DEFAULT 'SUPPLY MEANT FOR EXPORT ON PAYMENT OF INTEGRATED TAX/SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX',
+    seller_name           VARCHAR(150) NOT NULL DEFAULT 'Oleron India',
+    seller_address        TEXT,
+    seller_email          VARCHAR(150),
+    seller_phone          VARCHAR(50),
+    seller_gstin          VARCHAR(30),
+    seller_logo_url       TEXT,
+    bill_to_name          VARCHAR(150) NOT NULL,
+    bill_to_address       TEXT,
+    bill_to_email         VARCHAR(150),
+    bill_to_phone         VARCHAR(50),
+    bill_to_website       VARCHAR(150),
+    currency              VARCHAR(3) NOT NULL DEFAULT 'USD',
+    gross_amount          NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (gross_amount >= 0),
+    tax_amount            NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
+    additional_amount     NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (additional_amount >= 0),
+    total_amount          NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+    paid_amount           NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (paid_amount >= 0),
+    balance_amount        NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (balance_amount >= 0),
+    status                invoice_status NOT NULL DEFAULT 'draft',
+    payment_status        invoice_payment_status NOT NULL DEFAULT 'unpaid',
+    lut_order_number      VARCHAR(100),
+    arn_number            VARCHAR(100),
+    notes                 TEXT,
+    signer_name           VARCHAR(150),
+    signer_title          VARCHAR(100),
+    signature_url         TEXT,
+    seal_url              TEXT,
+    pdf_url               TEXT,
+    issued_at             TIMESTAMPTZ,
+    cancelled_at          TIMESTAMPTZ,
+    created_at            TIMESTAMPTZ DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(branch_id, invoice_no)
+);
+
+CREATE TABLE work_order_invoice_items (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id      UUID NOT NULL REFERENCES work_order_invoices(id) ON DELETE CASCADE,
+    work_order_item_id UUID REFERENCES work_order_items(id) ON DELETE SET NULL,
+    line_no         SMALLINT NOT NULL CHECK (line_no > 0),
+    description     TEXT NOT NULL,
+    quantity        NUMERIC(10,2) NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    sac_code        VARCHAR(20),
+    unit_amount     NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (unit_amount >= 0),
+    tax_amount      NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (tax_amount >= 0),
+    total_amount    NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(invoice_id, line_no)
+);
+
+CREATE TABLE work_order_invoice_payments (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_id          UUID NOT NULL REFERENCES work_order_invoices(id) ON DELETE CASCADE,
+    recorded_by         UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    payment_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+    amount              NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+    currency            VARCHAR(3) NOT NULL DEFAULT 'USD',
+    method              invoice_payment_method NOT NULL,
+    other_method        VARCHAR(100),
+    reference_no        VARCHAR(150),
+    payer_name          VARCHAR(150),
+    payer_account_last4 VARCHAR(10),
+    bank_name           VARCHAR(150),
+    status              invoice_payment_record_status NOT NULL DEFAULT 'pending',
+    notes               TEXT,
+    verified_by         UUID REFERENCES users(id) ON DELETE SET NULL,
+    verified_at         TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    CHECK (method <> 'other' OR NULLIF(BTRIM(other_method), '') IS NOT NULL)
+);
+
+CREATE TABLE work_order_invoice_payment_statements (
+    id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payment_id         UUID NOT NULL REFERENCES work_order_invoice_payments(id) ON DELETE CASCADE,
+    uploaded_by        UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    statement_url      TEXT NOT NULL,
+    original_filename  VARCHAR(255),
+    file_mime_type     VARCHAR(100),
+    file_size_bytes    BIGINT CHECK (file_size_bytes IS NULL OR file_size_bytes >= 0),
+    notes              TEXT,
+    created_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION refresh_work_order_invoice_payment_summary()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_invoice_id UUID;
+    confirmed_total NUMERIC(12,2);
+BEGIN
+    target_invoice_id := COALESCE(NEW.invoice_id, OLD.invoice_id);
+
+    SELECT COALESCE(SUM(amount), 0)
+    INTO confirmed_total
+    FROM work_order_invoice_payments
+    WHERE invoice_id = target_invoice_id
+      AND status = 'confirmed';
+
+    UPDATE work_order_invoices
+    SET paid_amount = confirmed_total,
+        balance_amount = GREATEST(total_amount - confirmed_total, 0),
+        payment_status = CASE
+            WHEN confirmed_total = 0 THEN 'unpaid'::invoice_payment_status
+            WHEN confirmed_total < total_amount THEN 'partially_paid'::invoice_payment_status
+            WHEN confirmed_total = total_amount THEN 'paid'::invoice_payment_status
+            ELSE 'overpaid'::invoice_payment_status
+        END,
+        updated_at = NOW()
+    WHERE id = target_invoice_id;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_work_order_invoice_payment_summary()
+RETURNS TRIGGER AS $$
+DECLARE
+    confirmed_total NUMERIC(12,2);
+BEGIN
+    SELECT COALESCE(SUM(amount), 0)
+    INTO confirmed_total
+    FROM work_order_invoice_payments
+    WHERE invoice_id = NEW.id
+      AND status = 'confirmed';
+
+    NEW.paid_amount := confirmed_total;
+    NEW.balance_amount := GREATEST(NEW.total_amount - confirmed_total, 0);
+    NEW.payment_status := CASE
+        WHEN confirmed_total = 0 THEN 'unpaid'::invoice_payment_status
+        WHEN confirmed_total < NEW.total_amount THEN 'partially_paid'::invoice_payment_status
+        WHEN confirmed_total = NEW.total_amount THEN 'paid'::invoice_payment_status
+        ELSE 'overpaid'::invoice_payment_status
+    END;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE INDEX idx_rm_work_order_assets_manager_id ON regional_manager_work_order_assets(regional_manager_id);
 CREATE INDEX idx_work_orders_branch_id ON work_orders(branch_id);
 CREATE INDEX idx_work_orders_created_by ON work_orders(created_by);
 CREATE INDEX idx_work_orders_status ON work_orders(status);
 CREATE INDEX idx_work_orders_date ON work_orders(work_order_date);
 CREATE INDEX idx_work_order_items_work_order_id ON work_order_items(work_order_id);
+CREATE INDEX idx_work_order_invoices_work_order_id ON work_order_invoices(work_order_id);
+CREATE INDEX idx_work_order_invoices_branch_id ON work_order_invoices(branch_id);
+CREATE INDEX idx_work_order_invoices_status ON work_order_invoices(status);
+CREATE INDEX idx_work_order_invoices_payment_status ON work_order_invoices(payment_status);
+CREATE INDEX idx_work_order_invoices_invoice_date ON work_order_invoices(invoice_date);
+CREATE INDEX idx_work_order_invoice_items_invoice_id ON work_order_invoice_items(invoice_id);
+CREATE INDEX idx_work_order_invoice_payments_invoice_id ON work_order_invoice_payments(invoice_id);
+CREATE INDEX idx_work_order_invoice_payments_status ON work_order_invoice_payments(status);
+CREATE INDEX idx_work_order_invoice_payments_method ON work_order_invoice_payments(method);
+CREATE INDEX idx_work_order_invoice_payment_statements_payment_id ON work_order_invoice_payment_statements(payment_id);
 
 CREATE TRIGGER trg_rm_work_order_assets_updated_at
     BEFORE UPDATE ON regional_manager_work_order_assets
@@ -585,6 +777,26 @@ CREATE TRIGGER trg_work_orders_updated_at
 CREATE TRIGGER trg_work_order_items_updated_at
     BEFORE UPDATE ON work_order_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_order_invoices_updated_at
+    BEFORE UPDATE ON work_order_invoices
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_order_invoices_payment_summary
+    BEFORE INSERT OR UPDATE OF total_amount ON work_order_invoices
+    FOR EACH ROW EXECUTE FUNCTION set_work_order_invoice_payment_summary();
+
+CREATE TRIGGER trg_work_order_invoice_items_updated_at
+    BEFORE UPDATE ON work_order_invoice_items
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_order_invoice_payments_updated_at
+    BEFORE UPDATE ON work_order_invoice_payments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_work_order_invoice_payments_refresh_invoice
+    AFTER INSERT OR UPDATE OR DELETE ON work_order_invoice_payments
+    FOR EACH ROW EXECUTE FUNCTION refresh_work_order_invoice_payment_summary();
 
 
 -- ============================================
@@ -713,6 +925,10 @@ CREATE TRIGGER trg_interviews_updated_at
 -- regional_manager_work_order_assets → Uploaded manager signature/seal used for work orders
 -- work_orders       → Work order header, bill-to, job, totals, signer snapshot, PDF URL
 --     └── work_order_items → Work order line items (description, amount)
+--     └── work_order_invoices → Export invoices issued against a work order, with payment status
+--             ├── work_order_invoice_items → Invoice line items (description, qty, SAC, tax, total)
+--             └── work_order_invoice_payments → Payments by any supported method
+--                     └── work_order_invoice_payment_statements → Uploaded payment statements/proofs
 --
 -- vacancies         → Job postings per branch (title, JD, openings, status)
 --     └── applications → Candidates who applied (CV, status: applied → shortlisted → hired/rejected)
