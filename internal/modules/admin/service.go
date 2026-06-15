@@ -7,11 +7,18 @@ import (
 
 	"rmp-api/internal/models"
 	"rmp-api/pkg/hash"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Service struct {
 	repo *Repository
 }
+
+var (
+	ErrBranchNotFound = errors.New("branch not found")
+	ErrUserNotFound   = errors.New("user not found")
+)
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
@@ -87,8 +94,15 @@ func (s *Service) UpdateBranch(ctx context.Context, id string, req UpdateBranchR
 	return existing, nil
 }
 
-func (s *Service) DeleteBranch(ctx context.Context, id string) error {
-	return s.repo.DeleteBranch(ctx, id)
+func (s *Service) ArchiveBranch(ctx context.Context, id string) (*models.Branch, error) {
+	branch, err := s.repo.ArchiveBranch(ctx, id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrBranchNotFound
+		}
+		return nil, err
+	}
+	return branch, nil
 }
 
 // =============================================
@@ -176,8 +190,15 @@ func (s *Service) ResetUserPassword(ctx context.Context, id string, req ResetPas
 	return s.repo.UpdateUserPassword(ctx, id, passwordHash)
 }
 
-func (s *Service) DeleteUser(ctx context.Context, id string) error {
-	return s.repo.DeleteUser(ctx, id)
+func (s *Service) DeactivateUser(ctx context.Context, id string) (*models.User, error) {
+	user, err := s.repo.DeactivateUser(ctx, id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
 }
 
 // =============================================

@@ -20,14 +20,14 @@ Base URL: `http://localhost:8080/api/v1/admin`
   - [2. Get Branch by ID](#2-get-branch-by-id)
   - [3. Create Branch](#3-create-branch)
   - [4. Update Branch](#4-update-branch)
-  - [5. Delete Branch](#5-delete-branch)
+  - [5. Archive Branch](#5-archive-branch)
 - [Users](#users)
   - [1. List All Users](#1-list-all-users)
   - [2. Get User by ID](#2-get-user-by-id)
   - [3. Create User](#3-create-user)
   - [4. Update User](#4-update-user)
   - [5. Reset User Password](#5-reset-user-password)
-  - [6. Delete User](#6-delete-user)
+  - [6. Deactivate User](#6-deactivate-user)
 - [Employees](#employees)
   - [1. List All Employees](#1-list-all-employees)
   - [2. Get Employee by ID](#2-get-employee-by-id)
@@ -261,11 +261,13 @@ curl -X PUT http://localhost:8080/api/v1/admin/branches/660e8400-e29b-41d4-a716-
 
 ---
 
-### 5. Delete Branch
+### 5. Archive Branch
 
 ```
 DELETE /api/v1/admin/branches/{id}
 ```
+
+Archives the branch by setting `is_active = false`. The branch row is preserved so users, work orders, invoices, and other historical records keep their original branch link.
 
 #### cURL
 
@@ -281,12 +283,24 @@ curl -X DELETE http://localhost:8080/api/v1/admin/branches/660e8400-e29b-41d4-a7
 {
   "success": true,
   "data": {
-    "message": "branch deleted"
+    "message": "branch archived",
+    "branch": {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Main Branch",
+      "code": "BRANCH01",
+      "address": "123 Oleron Street",
+      "phone": "+1234567890",
+      "email": "branch@oleron.in",
+      "logo_url": null,
+      "is_active": false,
+      "created_at": "2026-01-01T10:00:00Z",
+      "updated_at": "2026-01-02T10:00:00Z"
+    }
   }
 }
 ```
 
-> ⚠️ **Note:** Deleting a branch that still has users will fail due to the foreign key constraint (`ON DELETE RESTRICT`).
+> Note: this endpoint performs a soft delete/archive. It does not physically remove the branch because business records may reference it.
 
 ---
 
@@ -542,11 +556,13 @@ curl -X PATCH http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-4
 
 ---
 
-### 6. Delete User
+### 6. Deactivate User
 
 ```
 DELETE /api/v1/admin/users/{id}
 ```
+
+Deactivates the user by setting `status = "inactive"`. The user row is preserved so work orders, payments, audit records, and other historical data keep their original user link. Inactive users cannot sign in.
 
 #### cURL
 
@@ -562,7 +578,21 @@ curl -X DELETE http://localhost:8080/api/v1/admin/users/880e8400-e29b-41d4-a716-
 {
   "success": true,
   "data": {
-    "message": "user deleted"
+    "message": "user deactivated",
+    "user": {
+      "id": "880e8400-e29b-41d4-a716-446655440002",
+      "branch_id": "660e8400-e29b-41d4-a716-446655440001",
+      "first_name": "John",
+      "last_name": "Doe",
+      "email": "john.doe@oleron.in",
+      "phone": "+1234567890",
+      "role": "manager",
+      "status": "inactive",
+      "avatar_url": null,
+      "last_login_at": null,
+      "created_at": "2026-01-01T10:00:00Z",
+      "updated_at": "2026-01-02T10:00:00Z"
+    }
   }
 }
 ```

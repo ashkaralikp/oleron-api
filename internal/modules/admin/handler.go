@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"rmp-api/internal/dbscope"
@@ -93,12 +94,20 @@ func (h *Handler) UpdateBranch(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteBranch(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
-	if err := h.service.DeleteBranch(r.Context(), id); err != nil {
-		response.Error(w, http.StatusInternalServerError, "failed to delete branch: "+err.Error())
+	branch, err := h.service.ArchiveBranch(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrBranchNotFound) {
+			response.Error(w, http.StatusNotFound, "branch not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to archive branch")
 		return
 	}
 
-	response.Success(w, map[string]string{"message": "branch deleted"})
+	response.Success(w, map[string]interface{}{
+		"message": "branch archived",
+		"branch":  branch,
+	})
 }
 
 // =============================================
@@ -191,12 +200,20 @@ func (h *Handler) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
-	if err := h.service.DeleteUser(r.Context(), id); err != nil {
-		response.Error(w, http.StatusInternalServerError, "failed to delete user: "+err.Error())
+	user, err := h.service.DeactivateUser(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			response.Error(w, http.StatusNotFound, "user not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "failed to deactivate user")
 		return
 	}
 
-	response.Success(w, map[string]string{"message": "user deleted"})
+	response.Success(w, map[string]interface{}{
+		"message": "user deactivated",
+		"user":    user,
+	})
 }
 
 // =============================================

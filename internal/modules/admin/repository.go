@@ -5,6 +5,7 @@ import (
 
 	"rmp-api/internal/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -79,9 +80,25 @@ func (r *Repository) UpdateBranch(ctx context.Context, id string, b *models.Bran
 	return err
 }
 
-func (r *Repository) DeleteBranch(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM branches WHERE id = $1`, id)
-	return err
+func (r *Repository) ArchiveBranch(ctx context.Context, id string) (*models.Branch, error) {
+	var b models.Branch
+	err := r.db.QueryRow(ctx,
+		`UPDATE branches
+		 SET is_active = FALSE, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING id, name, code, address, phone, email, logo_url, is_active, created_at, updated_at`,
+		id,
+	).Scan(
+		&b.ID, &b.Name, &b.Code, &b.Address, &b.Phone,
+		&b.Email, &b.LogoURL, &b.IsActive, &b.CreatedAt, &b.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		}
+		return nil, err
+	}
+	return &b, nil
 }
 
 // =============================================
@@ -165,9 +182,29 @@ func (r *Repository) UpdateUserPassword(ctx context.Context, id string, password
 	return err
 }
 
-func (r *Repository) DeleteUser(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
-	return err
+func (r *Repository) DeactivateUser(ctx context.Context, id string) (*models.User, error) {
+	var u models.User
+	err := r.db.QueryRow(ctx,
+		`UPDATE users
+		 SET status = 'inactive', updated_at = NOW()
+		 WHERE id = $1 AND role != 'super_admin'
+		 RETURNING id, branch_id, first_name, last_name, email, phone,
+		           password_hash, role, status, avatar_url, last_login_at,
+		           created_at, updated_at`,
+		id,
+	).Scan(
+		&u.ID, &u.BranchID, &u.FirstName, &u.LastName,
+		&u.Email, &u.Phone, &u.PasswordHash, &u.Role,
+		&u.Status, &u.AvatarURL, &u.LastLoginAt,
+		&u.CreatedAt, &u.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		}
+		return nil, err
+	}
+	return &u, nil
 }
 
 // =============================================
