@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"rmp-api/internal/models"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -61,7 +63,7 @@ func (r *Repository) FetchConfigByEmployeeID(ctx context.Context, employeeID str
 const tsCols = `
 	ct.id, ct.employee_id, e.employee_code, u.first_name, u.last_name,
 	ct.year, ct.month, ct.support_hours, ct.overtime_hours, ct.notes,
-	ct.status, ct.reviewer_id, ct.review_note, ct.reviewed_at, ct.submitted_at`
+	ct.status, ct.reviewer_id, ct.review_note, ct.reviewed_at, ct.submitted_at, ct.details`
 
 const tsJoin = `
 	FROM consultant_timesheets ct
@@ -74,13 +76,20 @@ type scannable interface {
 
 func scanTS(row scannable) (*TimesheetResponse, error) {
 	var t TimesheetResponse
+	var details models.DailyEntries
 	err := row.Scan(
 		&t.ID, &t.EmployeeID, &t.EmployeeCode, &t.FirstName, &t.LastName,
 		&t.Year, &t.Month, &t.SupportHours, &t.OvertimeHours, &t.Notes,
-		&t.Status, &t.ReviewerID, &t.ReviewNote, &t.ReviewedAt, &t.SubmittedAt,
+		&t.Status, &t.ReviewerID, &t.ReviewNote, &t.ReviewedAt, &t.SubmittedAt, &details,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if len(details) > 0 {
+		t.Details = make([]DailyEntry, len(details))
+		for i, d := range details {
+			t.Details[i] = DailyEntry{Day: d.Day, Support: d.Support, OT: d.OT}
+		}
 	}
 	return &t, nil
 }
@@ -91,23 +100,33 @@ func (r *Repository) Submit(ctx context.Context, employeeID string, req SubmitRe
 		notes = &req.Notes
 	}
 
+	// Convert details to the model type
+	var details models.DailyEntries
+	if len(req.Details) > 0 {
+		details = make(models.DailyEntries, len(req.Details))
+		for i, d := range req.Details {
+			details[i] = models.DailyEntry{Day: d.Day, Support: d.Support, OT: d.OT}
+		}
+	}
+
 	var id string
 	var submittedAt time.Time
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO consultant_timesheets
-		   (employee_id, year, month, support_hours, overtime_hours, notes)
-		 VALUES ($1, $2, $3, $4, $5, $6)
+		   (employee_id, year, month, support_hours, overtime_hours, notes, details)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 ON CONFLICT (employee_id, year, month) DO UPDATE
 		   SET support_hours  = EXCLUDED.support_hours,
 		       overtime_hours = EXCLUDED.overtime_hours,
 		       notes          = EXCLUDED.notes,
+		       details        = EXCLUDED.details,
 		       status         = 'pending',
 		       reviewer_id    = NULL,
 		       review_note    = NULL,
 		       reviewed_at    = NULL,
 		       updated_at     = NOW()
 		 RETURNING id, submitted_at`,
-		employeeID, req.Year, req.Month, req.SupportHours, req.OvertimeHours, notes,
+		employeeID, req.Year, req.Month, req.SupportHours, req.OvertimeHours, notes, details,
 	).Scan(&id, &submittedAt)
 	if err != nil {
 		return nil, err

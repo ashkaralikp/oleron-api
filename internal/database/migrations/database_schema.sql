@@ -948,6 +948,7 @@ CREATE TABLE IF NOT EXISTS consultant_timesheets (
     support_hours  NUMERIC(8,2) NOT NULL DEFAULT 0,
     overtime_hours NUMERIC(8,2) NOT NULL DEFAULT 0,
     notes          TEXT,
+    details        JSONB,
 
     status         TEXT         NOT NULL DEFAULT 'pending'
                                 CHECK (status IN ('pending', 'approved', 'rejected')),

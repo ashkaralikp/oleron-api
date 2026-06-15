@@ -31,18 +31,25 @@ type EstimateResponse struct {
 	OTRate             float64 `json:"ot_rate"`
 	HourlyRate         float64 `json:"hourly_rate"`
 	Scenario           string  `json:"scenario"`
-	EstimatedPay       Money  `json:"estimated_pay"`
-	Currency           string `json:"currency"`
+	EstimatedPay       Money   `json:"estimated_pay"`
+	Currency           string  `json:"currency"`
 }
 
 // ── Submit (consultant) ───────────────────────────────────────────
 
+type DailyEntry struct {
+	Day     int     `json:"day" validate:"required,min=1,max=31"`
+	Support float64 `json:"support" validate:"min=0"`
+	OT      float64 `json:"ot" validate:"min=0"`
+}
+
 type SubmitRequest struct {
-	Year          int     `json:"year" validate:"required,min=2000,max=2100"`
-	Month         int     `json:"month" validate:"required,min=1,max=12"`
-	SupportHours  float64 `json:"support_hours" validate:"min=0"`
-	OvertimeHours float64 `json:"overtime_hours" validate:"min=0"`
-	Notes         string  `json:"notes"`
+	Year          int          `json:"year" validate:"required,min=2000,max=2100"`
+	Month         int          `json:"month" validate:"required,min=1,max=12"`
+	SupportHours  float64      `json:"support_hours" validate:"min=0"`
+	OvertimeHours float64      `json:"overtime_hours" validate:"min=0"`
+	Notes         string       `json:"notes"`
+	Details       []DailyEntry `json:"details,omitempty"`
 }
 
 // ── Review (admin / manager) ──────────────────────────────────────
@@ -55,21 +62,22 @@ type ReviewRequest struct {
 // ── Shared response ───────────────────────────────────────────────
 
 type TimesheetResponse struct {
-	ID            string     `json:"id"`
-	EmployeeID    string     `json:"employee_id"`
-	EmployeeCode  string     `json:"employee_code"`
-	FirstName     string     `json:"first_name"`
-	LastName      string     `json:"last_name"`
-	Year          int        `json:"year"`
-	Month         int        `json:"month"`
-	SupportHours  float64    `json:"support_hours"`
-	OvertimeHours float64    `json:"overtime_hours"`
-	Notes         *string    `json:"notes,omitempty"`
-	Status        string     `json:"status"`
-	ReviewerID    *string    `json:"reviewer_id,omitempty"`
-	ReviewNote    *string    `json:"review_note,omitempty"`
-	ReviewedAt    *time.Time `json:"reviewed_at,omitempty"`
-	SubmittedAt   time.Time  `json:"submitted_at"`
-	EstimatedPay  Money      `json:"estimated_pay"`
-	Currency      string     `json:"currency"`
+	ID            string       `json:"id"`
+	EmployeeID    string       `json:"employee_id"`
+	EmployeeCode  string       `json:"employee_code"`
+	FirstName     string       `json:"first_name"`
+	LastName      string       `json:"last_name"`
+	Year          int          `json:"year"`
+	Month         int          `json:"month"`
+	SupportHours  float64      `json:"support_hours"`
+	OvertimeHours float64      `json:"overtime_hours"`
+	Notes         *string      `json:"notes,omitempty"`
+	Status        string       `json:"status"`
+	ReviewerID    *string      `json:"reviewer_id,omitempty"`
+	ReviewNote    *string      `json:"review_note,omitempty"`
+	ReviewedAt    *time.Time   `json:"reviewed_at,omitempty"`
+	SubmittedAt   time.Time    `json:"submitted_at"`
+	EstimatedPay  Money        `json:"estimated_pay"`
+	Currency      string       `json:"currency"`
+	Details       []DailyEntry `json:"details,omitempty"`
 }
