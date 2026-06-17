@@ -491,9 +491,14 @@ func (r *Repository) DeleteApplication(ctx context.Context, id string) error {
 // ─────────────────────────────────────────────
 
 func (r *Repository) CreateInterview(ctx context.Context, applicationID, interviewerID string, scheduledAt time.Time, iType string, location *string) (*models.Interview, error) {
+	// Update application status to interview_scheduled and create the interview in a single round-trip
 	var i models.Interview
 	err := r.db.QueryRow(ctx,
-		`INSERT INTO interviews (application_id, interviewer_id, scheduled_at, type, location)
+		`WITH updated AS (
+		    UPDATE applications SET status = 'interview_scheduled'::application_status, updated_at = NOW()
+		    WHERE id = $1 AND status <> 'hired' AND status <> 'withdrawn' AND status <> 'rejected'
+		)
+		 INSERT INTO interviews (application_id, interviewer_id, scheduled_at, type, location)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, application_id, interviewer_id, scheduled_at, type, location,
 		           outcome, feedback, created_at, updated_at`,
