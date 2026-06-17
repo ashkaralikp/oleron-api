@@ -26,21 +26,23 @@ type PublicVacancy struct {
 // ─────────────────────────────────────────────
 
 type CreateVacancyRequest struct {
-	Title        string  `json:"title" validate:"required,max=150"`
-	Department   *string `json:"department"`
-	Description  *string `json:"description"`
-	Requirements *string `json:"requirements"`
-	Positions    int     `json:"positions"` // defaults to 1 if 0
-	Deadline     *string `json:"deadline"`  // YYYY-MM-DD, optional
+	Title        string   `json:"title" validate:"required,max=150"`
+	Department   *string  `json:"department"`
+	Description  *string  `json:"description"`
+	Requirements *string  `json:"requirements"`
+	Positions    int      `json:"positions"`   // defaults to 1 if 0
+	Deadline     *string  `json:"deadline"`    // YYYY-MM-DD, optional
+	AssignedTo   []string `json:"assigned_to"` // defaults to [created_by] on the server
 }
 
 type UpdateVacancyRequest struct {
-	Title        *string `json:"title" validate:"omitempty,max=150"`
-	Department   *string `json:"department"`
-	Description  *string `json:"description"`
-	Requirements *string `json:"requirements"`
-	Positions    *int    `json:"positions" validate:"omitempty,min=1"`
-	Deadline     *string `json:"deadline"`
+	Title        *string  `json:"title" validate:"omitempty,max=150"`
+	Department   *string  `json:"department"`
+	Description  *string  `json:"description"`
+	Requirements *string  `json:"requirements"`
+	Positions    *int     `json:"positions" validate:"omitempty,min=1"`
+	Deadline     *string  `json:"deadline"`
+	AssignedTo   []string `json:"assigned_to"`
 }
 
 type UpdateVacancyStatusRequest struct {
@@ -112,7 +114,7 @@ type UpdateInterviewRequest struct {
 type HireRequest struct {
 	EmployeeCode   string  `json:"employee_code" validate:"required"`
 	HourlyRate     float64 `json:"hourly_rate" validate:"min=0"`
-	Currency       string  `json:"currency"`        // defaults to USD
+	Currency       string  `json:"currency"`                         // defaults to USD
 	JoiningDate    string  `json:"joining_date" validate:"required"` // YYYY-MM-DD
 	Designation    *string `json:"designation"`
 	EmploymentType string  `json:"employment_type"` // defaults to full_time

@@ -21,6 +21,42 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 }
 
 // ─────────────────────────────────────────────
+// ASSIGNABLE USERS
+// ─────────────────────────────────────────────
+
+type AssignableUser struct {
+	ID        string `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
+// FindAssignableUsers returns all active manager and regional_manager users.
+// Branch filtering is intentionally omitted — any authorised user (manager+)
+// can assign a vacancy to any manager/regional_manager in the organisation.
+func (r *Repository) FindAssignableUsers(ctx context.Context, branchIDs []string) ([]AssignableUser, error) {
+	query := `SELECT id, first_name, last_name, role FROM users
+	          WHERE role IN ('manager', 'regional_manager') AND status = 'active'
+	          ORDER BY first_name, last_name`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []AssignableUser
+	for rows.Next() {
+		var u AssignableUser
+		if err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Role); err != nil {
+			return nil, err
+		}
+		result = append(result, u)
+	}
+	return result, nil
+}
+
+// ─────────────────────────────────────────────
 // PUBLIC VACANCIES
 // ─────────────────────────────────────────────
 
@@ -62,17 +98,45 @@ func (r *Repository) FindPublicVacancies(ctx context.Context) ([]PublicVacancy, 
 // VACANCIES
 // ─────────────────────────────────────────────
 
-func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string) ([]models.Vacancy, error) {
-	query := `SELECT v.id, v.branch_id, v.created_by, v.title, v.department,
+func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string, assignedToUserID string) ([]models.Vacancy, error) {
+	query := `SELECT v.id, v.branch_id, v.created_by,
+	                 COALESCE(ARRAY_AGG(va.user_id) FILTER (WHERE va.user_id IS NOT NULL), '{}') AS assigned_to,
+	                 COALESCE(ARRAY_AGG(u.first_name || ' ' || u.last_name) FILTER (WHERE u.id IS NOT NULL), '{}') AS assigned_to_names,
+	                 v.title, v.department,
 	                 v.description, v.requirements, v.positions, v.status, v.deadline,
 	                 v.created_at, v.updated_at,
 	                 COUNT(a.id) AS application_count
 	          FROM vacancies v
-	          LEFT JOIN applications a ON a.vacancy_id = v.id`
+	          LEFT JOIN applications a ON a.vacancy_id = v.id
+	          LEFT JOIN vacancy_assignees va ON va.vacancy_id = v.id
+	          LEFT JOIN users u ON u.id = va.user_id`
 	args := []any{}
-	if len(branchIDs) > 0 {
-		query += ` WHERE v.branch_id::text = ANY($1)`
+	where := []string{}
+	n := 1
+
+	// Branch filter: users see vacancies in their branch scope
+	hasBranchFilter := len(branchIDs) > 0
+	if hasBranchFilter {
+		where = append(where, fmt.Sprintf("v.branch_id::text = ANY($%d)", n))
 		args = append(args, branchIDs)
+		n++
+	}
+	// Assignment filter: users also see vacancies they are assigned to (even in other branches)
+	if assignedToUserID != "" {
+		assignClause := fmt.Sprintf(`EXISTS (SELECT 1 FROM vacancy_assignees va2 WHERE va2.vacancy_id = v.id AND va2.user_id::text = $%d)`, n)
+		args = append(args, assignedToUserID)
+		n++
+		if hasBranchFilter {
+			// Combine branch + assignment with OR so assigned vacancies are visible regardless of branch
+			lastIdx := len(where) - 1
+			existingBranchClause := where[lastIdx]
+			where[lastIdx] = fmt.Sprintf("(%s OR %s)", existingBranchClause, assignClause)
+		} else {
+			where = append(where, assignClause)
+		}
+	}
+	if len(where) > 0 {
+		query += ` WHERE ` + strings.Join(where, " AND ")
 	}
 	query += ` GROUP BY v.id ORDER BY v.created_at DESC`
 
@@ -86,7 +150,9 @@ func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string) (
 	for rows.Next() {
 		var v models.Vacancy
 		if err := rows.Scan(
-			&v.ID, &v.BranchID, &v.CreatedBy, &v.Title, &v.Department,
+			&v.ID, &v.BranchID, &v.CreatedBy,
+			&v.AssignedTo, &v.AssignedToNames,
+			&v.Title, &v.Department,
 			&v.Description, &v.Requirements, &v.Positions, &v.Status, &v.Deadline,
 			&v.CreatedAt, &v.UpdatedAt, &v.ApplicationCount,
 		); err != nil {
@@ -100,16 +166,23 @@ func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string) (
 func (r *Repository) FindVacancyByID(ctx context.Context, id string) (*models.Vacancy, error) {
 	var v models.Vacancy
 	err := r.db.QueryRow(ctx,
-		`SELECT v.id, v.branch_id, v.created_by, v.title, v.department,
+		`SELECT v.id, v.branch_id, v.created_by,
+		        COALESCE(ARRAY_AGG(va.user_id) FILTER (WHERE va.user_id IS NOT NULL), '{}') AS assigned_to,
+		        COALESCE(ARRAY_AGG(u.first_name || ' ' || u.last_name) FILTER (WHERE u.id IS NOT NULL), '{}') AS assigned_to_names,
+		        v.title, v.department,
 		        v.description, v.requirements, v.positions, v.status, v.deadline,
 		        v.created_at, v.updated_at,
 		        COUNT(a.id) AS application_count
 		 FROM vacancies v
 		 LEFT JOIN applications a ON a.vacancy_id = v.id
+		 LEFT JOIN vacancy_assignees va ON va.vacancy_id = v.id
+		 LEFT JOIN users u ON u.id = va.user_id
 		 WHERE v.id = $1
 		 GROUP BY v.id`, id,
 	).Scan(
-		&v.ID, &v.BranchID, &v.CreatedBy, &v.Title, &v.Department,
+		&v.ID, &v.BranchID, &v.CreatedBy,
+		&v.AssignedTo, &v.AssignedToNames,
+		&v.Title, &v.Department,
 		&v.Description, &v.Requirements, &v.Positions, &v.Status, &v.Deadline,
 		&v.CreatedAt, &v.UpdatedAt, &v.ApplicationCount,
 	)
@@ -119,23 +192,35 @@ func (r *Repository) FindVacancyByID(ctx context.Context, id string) (*models.Va
 	return &v, nil
 }
 
-func (r *Repository) CreateVacancy(ctx context.Context, branchID, createdBy string, req CreateVacancyRequest) (*models.Vacancy, error) {
+func (r *Repository) CreateVacancy(ctx context.Context, branchID, createdBy string, assignedTo []string, req CreateVacancyRequest) (*models.Vacancy, error) {
 	positions := req.Positions
 	if positions < 1 {
 		positions = 1
 	}
-	var v models.Vacancy
+
+	var vacancyID string
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO vacancies (branch_id, created_by, title, department, description, requirements, positions, deadline)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		 RETURNING id, branch_id, created_by, title, department, description, requirements, positions, status, deadline, created_at, updated_at`,
+		 RETURNING id`,
 		branchID, createdBy, req.Title, req.Department, req.Description, req.Requirements, positions, req.Deadline,
-	).Scan(
-		&v.ID, &v.BranchID, &v.CreatedBy, &v.Title, &v.Department,
-		&v.Description, &v.Requirements, &v.Positions, &v.Status, &v.Deadline,
-		&v.CreatedAt, &v.UpdatedAt,
-	)
-	return &v, err
+	).Scan(&vacancyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert assignees
+	for _, uid := range assignedTo {
+		if _, err := r.db.Exec(ctx,
+			`INSERT INTO vacancy_assignees (vacancy_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+			vacancyID, uid,
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	// Fetch and return the full vacancy
+	return r.FindVacancyByID(ctx, vacancyID)
 }
 
 func (r *Repository) UpdateVacancy(ctx context.Context, id string, req UpdateVacancyRequest) (*models.Vacancy, error) {
@@ -173,39 +258,47 @@ func (r *Repository) UpdateVacancy(ctx context.Context, id string, req UpdateVac
 		args = append(args, *req.Deadline)
 		n++
 	}
-	if len(fields) == 0 {
-		return r.FindVacancyByID(ctx, id)
+
+	// Update scalar fields
+	if len(fields) > 0 {
+		fields = append(fields, "updated_at = NOW()")
+		args = append(args, id)
+		query := fmt.Sprintf(
+			`UPDATE vacancies SET %s WHERE id = $%d`,
+			strings.Join(fields, ", "), n,
+		)
+		if _, err := r.db.Exec(ctx, query, args...); err != nil {
+			return nil, err
+		}
 	}
 
-	fields = append(fields, "updated_at = NOW()")
-	args = append(args, id)
-	query := fmt.Sprintf(
-		`UPDATE vacancies SET %s WHERE id = $%d
-		 RETURNING id, branch_id, created_by, title, department, description, requirements, positions, status, deadline, created_at, updated_at`,
-		strings.Join(fields, ", "), n,
-	)
-	var v models.Vacancy
-	err := r.db.QueryRow(ctx, query, args...).Scan(
-		&v.ID, &v.BranchID, &v.CreatedBy, &v.Title, &v.Department,
-		&v.Description, &v.Requirements, &v.Positions, &v.Status, &v.Deadline,
-		&v.CreatedAt, &v.UpdatedAt,
-	)
-	return &v, err
+	// Update assignees (replace all)
+	if req.AssignedTo != nil {
+		if _, err := r.db.Exec(ctx, `DELETE FROM vacancy_assignees WHERE vacancy_id = $1`, id); err != nil {
+			return nil, err
+		}
+		for _, uid := range req.AssignedTo {
+			if _, err := r.db.Exec(ctx,
+				`INSERT INTO vacancy_assignees (vacancy_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+				id, uid,
+			); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return r.FindVacancyByID(ctx, id)
 }
 
 func (r *Repository) UpdateVacancyStatus(ctx context.Context, id, status string) (*models.Vacancy, error) {
-	var v models.Vacancy
-	err := r.db.QueryRow(ctx,
-		`UPDATE vacancies SET status = $2, updated_at = NOW()
-		 WHERE id = $1
-		 RETURNING id, branch_id, created_by, title, department, description, requirements, positions, status, deadline, created_at, updated_at`,
+	_, err := r.db.Exec(ctx,
+		`UPDATE vacancies SET status = $2, updated_at = NOW() WHERE id = $1`,
 		id, status,
-	).Scan(
-		&v.ID, &v.BranchID, &v.CreatedBy, &v.Title, &v.Department,
-		&v.Description, &v.Requirements, &v.Positions, &v.Status, &v.Deadline,
-		&v.CreatedAt, &v.UpdatedAt,
 	)
-	return &v, err
+	if err != nil {
+		return nil, err
+	}
+	return r.FindVacancyByID(ctx, id)
 }
 
 func (r *Repository) DeleteVacancy(ctx context.Context, id string) error {
@@ -223,6 +316,15 @@ func (r *Repository) FindVacancyBranchID(ctx context.Context, vacancyID string) 
 	return branchID, err
 }
 
+func (r *Repository) IsUserAssignedToVacancy(ctx context.Context, vacancyID, userID string) (bool, error) {
+	var count int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM vacancy_assignees WHERE vacancy_id = $1 AND user_id = $2`,
+		vacancyID, userID,
+	).Scan(&count)
+	return count > 0, err
+}
+
 func (r *Repository) FindVacancyBranchIDByApplicationID(ctx context.Context, applicationID string) (string, error) {
 	var branchID string
 	err := r.db.QueryRow(ctx,
@@ -231,6 +333,14 @@ func (r *Repository) FindVacancyBranchIDByApplicationID(ctx context.Context, app
 		 WHERE a.id = $1`, applicationID,
 	).Scan(&branchID)
 	return branchID, err
+}
+
+func (r *Repository) FindVacancyIDByApplicationID(ctx context.Context, applicationID string) (string, error) {
+	var vacancyID string
+	err := r.db.QueryRow(ctx,
+		`SELECT vacancy_id FROM applications WHERE id = $1`, applicationID,
+	).Scan(&vacancyID)
+	return vacancyID, err
 }
 
 func (r *Repository) FindVacancyBranchIDByInterviewID(ctx context.Context, interviewID string) (string, error) {
@@ -242,6 +352,14 @@ func (r *Repository) FindVacancyBranchIDByInterviewID(ctx context.Context, inter
 		 WHERE i.id = $1`, interviewID,
 	).Scan(&branchID)
 	return branchID, err
+}
+
+func (r *Repository) FindApplicationIDByInterviewID(ctx context.Context, interviewID string) (string, error) {
+	var applicationID string
+	err := r.db.QueryRow(ctx,
+		`SELECT application_id FROM interviews WHERE id = $1`, interviewID,
+	).Scan(&applicationID)
+	return applicationID, err
 }
 
 // ─────────────────────────────────────────────
@@ -331,6 +449,7 @@ func (r *Repository) FindApplicationByID(ctx context.Context, id string) (*model
 	}
 	defer rows.Close()
 
+	app.Interviews = []models.Interview{} // ensure empty array, never nil
 	for rows.Next() {
 		var i models.Interview
 		if err := rows.Scan(

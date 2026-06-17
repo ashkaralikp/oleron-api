@@ -882,6 +882,17 @@ CREATE TABLE interviews (
 );
 
 
+-- Vacancy assignees (junction table for multi-manager assignment)
+CREATE TABLE vacancy_assignees (
+    vacancy_id   UUID NOT NULL REFERENCES vacancies(id) ON DELETE CASCADE,
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_at  TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (vacancy_id, user_id)
+);
+
+CREATE INDEX idx_vacancy_assignees_vacancy_id ON vacancy_assignees(vacancy_id);
+CREATE INDEX idx_vacancy_assignees_user_id    ON vacancy_assignees(user_id);
+
 -- Recruitment indexes
 CREATE INDEX idx_vacancies_branch_id ON vacancies(branch_id);
 CREATE INDEX idx_vacancies_status ON vacancies(status);

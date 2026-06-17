@@ -139,6 +139,28 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 }
 
 // ─────────────────────────────────────────────
+// ASSIGNABLE USERS
+// ─────────────────────────────────────────────
+
+// GET /recruitment/assignable-users
+func (h *Handler) GetAssignableUsers(w http.ResponseWriter, r *http.Request) {
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	users, err := h.service.GetAssignableUsers(r.Context(), branchIDs)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to fetch assignable users")
+		return
+	}
+	response.Success(w, users)
+}
+
+// ─────────────────────────────────────────────
 // VACANCIES
 // ─────────────────────────────────────────────
 
@@ -152,7 +174,7 @@ func (h *Handler) GetAllVacancies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vacancies, err := h.service.GetAllVacancies(r.Context(), branchIDs)
+	vacancies, err := h.service.GetAllVacancies(r.Context(), branchIDs, userID, role)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "failed to fetch vacancies")
 		return
@@ -171,7 +193,7 @@ func (h *Handler) GetVacancyByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.GetVacancyByID(r.Context(), id, branchIDs)
+	v, err := h.service.GetVacancyByID(r.Context(), id, branchIDs, userID)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -238,7 +260,7 @@ func (h *Handler) UpdateVacancy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.UpdateVacancy(r.Context(), id, branchIDs, req)
+	v, err := h.service.UpdateVacancy(r.Context(), id, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -272,7 +294,7 @@ func (h *Handler) UpdateVacancyStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	v, err := h.service.UpdateVacancyStatus(r.Context(), id, branchIDs, req)
+	v, err := h.service.UpdateVacancyStatus(r.Context(), id, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -296,12 +318,10 @@ func (h *Handler) DeleteVacancy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteVacancy(r.Context(), id, branchIDs); err != nil {
+	if err := h.service.DeleteVacancy(r.Context(), id, branchIDs, userID); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
-		case "only draft vacancies can be deleted":
-			response.Error(w, http.StatusUnprocessableEntity, err.Error())
 		default:
 			response.Error(w, http.StatusNotFound, "vacancy not found")
 		}
@@ -335,7 +355,7 @@ func (h *Handler) BulkApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.BulkApply(r.Context(), vacancyID, branchIDs, req)
+	result, err := h.service.BulkApply(r.Context(), vacancyID, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -362,7 +382,7 @@ func (h *Handler) GetApplicationsByVacancy(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	apps, err := h.service.GetApplicationsByVacancy(r.Context(), vacancyID, branchIDs, statusFilter)
+	apps, err := h.service.GetApplicationsByVacancy(r.Context(), vacancyID, branchIDs, userID, statusFilter)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -386,7 +406,7 @@ func (h *Handler) GetApplicationByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, err := h.service.GetApplicationByID(r.Context(), id, branchIDs)
+	app, err := h.service.GetApplicationByID(r.Context(), id, branchIDs, userID)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -419,7 +439,7 @@ func (h *Handler) UpdateApplicationStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	app, err := h.service.UpdateApplicationStatus(r.Context(), id, branchIDs, req)
+	app, err := h.service.UpdateApplicationStatus(r.Context(), id, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -443,7 +463,7 @@ func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteApplication(r.Context(), id, branchIDs); err != nil {
+	if err := h.service.DeleteApplication(r.Context(), id, branchIDs, userID); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -480,7 +500,7 @@ func (h *Handler) CreateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	interview, err := h.service.CreateInterview(r.Context(), applicationID, branchIDs, req)
+	interview, err := h.service.CreateInterview(r.Context(), applicationID, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -516,7 +536,7 @@ func (h *Handler) UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	interview, err := h.service.UpdateInterview(r.Context(), id, branchIDs, req)
+	interview, err := h.service.UpdateInterview(r.Context(), id, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":
@@ -540,7 +560,7 @@ func (h *Handler) DeleteInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.DeleteInterview(r.Context(), id, branchIDs); err != nil {
+	if err := h.service.DeleteInterview(r.Context(), id, branchIDs, userID); err != nil {
 		switch err.Error() {
 		case "forbidden":
 			response.Error(w, http.StatusForbidden, "insufficient permissions")
@@ -577,7 +597,7 @@ func (h *Handler) Hire(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.service.Hire(r.Context(), id, branchIDs, req)
+	result, err := h.service.Hire(r.Context(), id, branchIDs, userID, req)
 	if err != nil {
 		switch err.Error() {
 		case "forbidden":

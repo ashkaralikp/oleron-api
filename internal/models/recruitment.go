@@ -6,6 +6,8 @@ type Vacancy struct {
 	ID               string     `json:"id"`
 	BranchID         string     `json:"branch_id"`
 	CreatedBy        string     `json:"created_by"`
+	AssignedTo       []string   `json:"assigned_to,omitempty"`
+	AssignedToNames  []string   `json:"assigned_to_names,omitempty"`
 	Title            string     `json:"title"`
 	Department       *string    `json:"department"`
 	Description      *string    `json:"description"`

@@ -101,6 +101,8 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			// Recruitment routes (super_admin, regional_manager, manager)
 			r.Route("/recruitment", func(r chi.Router) {
 				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
+				// Assignable users (for vacancy assignment)
+				r.Get("/assignable-users", recruitmentHandler.GetAssignableUsers)
 				// Vacancies
 				r.Get("/vacancies", recruitmentHandler.GetAllVacancies)
 				r.Post("/vacancies", recruitmentHandler.CreateVacancy)
