@@ -105,9 +105,8 @@ func (r *Repository) FindAllVacancies(ctx context.Context, branchIDs []string, a
 	                 v.title, v.department,
 	                 v.description, v.requirements, v.positions, v.status, v.deadline,
 	                 v.created_at, v.updated_at,
-	                 COUNT(a.id) AS application_count
+	                 (SELECT COUNT(*) FROM applications a WHERE a.vacancy_id = v.id) AS application_count
 	          FROM vacancies v
-	          LEFT JOIN applications a ON a.vacancy_id = v.id
 	          LEFT JOIN vacancy_assignees va ON va.vacancy_id = v.id
 	          LEFT JOIN users u ON u.id = va.user_id`
 	args := []any{}
@@ -172,9 +171,8 @@ func (r *Repository) FindVacancyByID(ctx context.Context, id string) (*models.Va
 		        v.title, v.department,
 		        v.description, v.requirements, v.positions, v.status, v.deadline,
 		        v.created_at, v.updated_at,
-		        COUNT(a.id) AS application_count
+		        (SELECT COUNT(*) FROM applications a WHERE a.vacancy_id = v.id) AS application_count
 		 FROM vacancies v
-		 LEFT JOIN applications a ON a.vacancy_id = v.id
 		 LEFT JOIN vacancy_assignees va ON va.vacancy_id = v.id
 		 LEFT JOIN users u ON u.id = va.user_id
 		 WHERE v.id = $1
