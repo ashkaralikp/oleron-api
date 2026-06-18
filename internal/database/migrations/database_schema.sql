@@ -13,7 +13,8 @@ CREATE TYPE user_role AS ENUM (
     'regional_manager',  -- Branch level full access (Manager)
     'manager',        -- Manages employees within a branch
     'employee',       -- Punches in/out; views own attendance and salary
-    'consultant'      -- External consultant with limited access (e.g. payroll only)
+    'consultant',     -- External consultant with limited access (e.g. payroll only)
+    'accounts'        -- Accounts team: manages invoices, payments, and payroll view
 );
 
 CREATE TYPE user_status AS ENUM (
@@ -500,7 +501,11 @@ INSERT INTO role_permissions (role, resource, can_view, can_create, can_edit, ca
 ('manager',      'report',      TRUE, FALSE, FALSE, FALSE),
 
 ('employee',     'attendance',  TRUE, FALSE, FALSE, FALSE),
-('employee',     'payroll',     TRUE, FALSE, FALSE, FALSE);
+('employee',     'payroll',     TRUE, FALSE, FALSE, FALSE),
+
+('accounts',     'work_order',  TRUE, FALSE, TRUE,  FALSE),
+('accounts',     'payroll',     TRUE, FALSE, FALSE, FALSE),
+('accounts',     'report',      TRUE, FALSE, FALSE, FALSE);
 
 -- Seed default menus (sidebar navigation)
 -- Single-page menus: leaf items link directly to a page

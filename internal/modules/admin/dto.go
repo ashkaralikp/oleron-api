@@ -47,7 +47,7 @@ type CreateUserRequest struct {
 	Email     string `json:"email" validate:"required,email"`
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required,min=6"`
-	Role      string `json:"role" validate:"required,oneof=super_admin regional_manager manager employee consultant"`
+	Role      string `json:"role" validate:"required,oneof=super_admin regional_manager manager employee consultant accounts"`
 }
 
 type UpdateUserRequest struct {
@@ -56,7 +56,7 @@ type UpdateUserRequest struct {
 	LastName  string `json:"last_name"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
-	Role      string `json:"role" validate:"omitempty,oneof=super_admin regional_manager manager employee consultant"`
+	Role      string `json:"role" validate:"omitempty,oneof=super_admin regional_manager manager employee consultant accounts"`
 	Status    string `json:"status" validate:"omitempty,oneof=active inactive suspended pending"`
 }
 
@@ -180,8 +180,8 @@ type EmployeeResponse struct {
 // =============================================
 
 type CreateRolePermissionRequest struct {
-	Role      string `json:"role" validate:"required,oneof=super_admin regional_manager manager employee consultant"`
-	Resource  string `json:"resource" validate:"required,oneof=employee attendance payroll report settings"`
+	Role      string `json:"role" validate:"required,oneof=super_admin regional_manager manager employee consultant accounts"`
+	Resource  string `json:"resource" validate:"required,oneof=employee attendance payroll report settings work_order"`
 	CanView   *bool  `json:"can_view"`
 	CanCreate *bool  `json:"can_create"`
 	CanEdit   *bool  `json:"can_edit"`
@@ -189,8 +189,8 @@ type CreateRolePermissionRequest struct {
 }
 
 type UpdateRolePermissionRequest struct {
-	Role      string `json:"role" validate:"omitempty,oneof=super_admin regional_manager manager employee consultant"`
-	Resource  string `json:"resource" validate:"omitempty,oneof=employee attendance payroll report settings"`
+	Role      string `json:"role" validate:"omitempty,oneof=super_admin regional_manager manager employee consultant accounts"`
+	Resource  string `json:"resource" validate:"omitempty,oneof=employee attendance payroll report settings work_order"`
 	CanView   *bool  `json:"can_view"`
 	CanCreate *bool  `json:"can_create"`
 	CanEdit   *bool  `json:"can_edit"`

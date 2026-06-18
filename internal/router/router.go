@@ -123,27 +123,27 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Delete("/interviews/{id}", recruitmentHandler.DeleteInterview)
 			})
 
-			// Payroll routes (super_admin, regional_manager, manager)
+			// Payroll routes
 			r.Route("/payroll", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager", "accounts"))
 				r.Get("/", payrollHandler.GetAll)
-				r.Post("/generate", payrollHandler.Generate)
 				r.Get("/{id}", payrollHandler.GetByID)
-				r.Patch("/{id}/status", payrollHandler.UpdateStatus)
-				r.Delete("/{id}", payrollHandler.Delete)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Post("/generate", payrollHandler.Generate)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Patch("/{id}/status", payrollHandler.UpdateStatus)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "manager")).Delete("/{id}", payrollHandler.Delete)
 			})
 
 			// Work order routes
 			r.Route("/work-orders", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager", "accounts"))
 				r.With(middleware.RequireRole("regional_manager")).Post("/assets", workOrderHandler.UpsertAsset)
 				r.With(middleware.RequireRole("regional_manager")).Get("/assets/me", workOrderHandler.GetMyAsset)
 				r.Get("/invoices/{invoiceID}", workOrderHandler.GetInvoice)
-				r.With(middleware.RequireRole("super_admin", "regional_manager")).Patch("/invoices/{invoiceID}/status", workOrderHandler.UpdateInvoiceStatus)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "accounts")).Patch("/invoices/{invoiceID}/status", workOrderHandler.UpdateInvoiceStatus)
 				r.Get("/invoices/{invoiceID}/payments", workOrderHandler.ListInvoicePayments)
-				r.With(middleware.RequireRole("super_admin", "regional_manager")).Post("/invoices/{invoiceID}/payments", workOrderHandler.AddInvoicePayment)
-				r.With(middleware.RequireRole("super_admin", "regional_manager")).Patch("/invoice-payments/{paymentID}/status", workOrderHandler.UpdateInvoicePaymentStatus)
-				r.With(middleware.RequireRole("super_admin", "regional_manager")).Post("/invoice-payments/{paymentID}/statements", workOrderHandler.UploadInvoicePaymentStatement)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "accounts")).Post("/invoices/{invoiceID}/payments", workOrderHandler.AddInvoicePayment)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "accounts")).Patch("/invoice-payments/{paymentID}/status", workOrderHandler.UpdateInvoicePaymentStatus)
+				r.With(middleware.RequireRole("super_admin", "regional_manager", "accounts")).Post("/invoice-payments/{paymentID}/statements", workOrderHandler.UploadInvoicePaymentStatement)
 				r.Get("/", workOrderHandler.GetAll)
 				r.With(middleware.RequireRole("super_admin", "regional_manager")).Post("/", workOrderHandler.Create)
 				r.Get("/{id}/invoices", workOrderHandler.ListInvoices)
@@ -181,9 +181,9 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Put("/{id}/activate", scheduleHandler.Activate)
 			})
 
-			// Reports routes (super_admin, regional_manager, manager)
+			// Reports routes
 			r.Route("/reports", func(r chi.Router) {
-				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager"))
+				r.Use(middleware.RequireRole("super_admin", "regional_manager", "manager", "accounts"))
 				r.Get("/attendance", reportsHandler.GetAttendanceReport)
 			})
 
