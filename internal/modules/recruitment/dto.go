@@ -83,6 +83,15 @@ type ApplicationResult struct {
 	Error  *string `json:"error,omitempty"`
 }
 
+type UpdateApplicationRequest struct {
+	FirstName   *string `json:"first_name" validate:"omitempty,max=100"`
+	LastName    *string `json:"last_name" validate:"omitempty,max=100"`
+	Email       *string `json:"email" validate:"omitempty,email"`
+	Phone       *string `json:"phone"`
+	CVUrl       *string `json:"cv_url"`
+	CoverLetter *string `json:"cover_letter"`
+}
+
 type UpdateApplicationStatusRequest struct {
 	Status string  `json:"status" validate:"required,oneof=shortlisted rejected interview_scheduled hired withdrawn"`
 	Notes  *string `json:"notes"`

@@ -479,6 +479,64 @@ func (r *Repository) UpdateApplicationStatus(ctx context.Context, id, status str
 	return &app, err
 }
 
+func (r *Repository) UpdateApplication(ctx context.Context, id string, req UpdateApplicationRequest) (*models.Application, error) {
+	fields := []string{}
+	args := []any{}
+	n := 1
+
+	if req.FirstName != nil {
+		fields = append(fields, fmt.Sprintf("first_name = $%d", n))
+		args = append(args, *req.FirstName)
+		n++
+	}
+	if req.LastName != nil {
+		fields = append(fields, fmt.Sprintf("last_name = $%d", n))
+		args = append(args, *req.LastName)
+		n++
+	}
+	if req.Email != nil {
+		fields = append(fields, fmt.Sprintf("email = $%d", n))
+		args = append(args, *req.Email)
+		n++
+	}
+	if req.Phone != nil {
+		fields = append(fields, fmt.Sprintf("phone = $%d", n))
+		args = append(args, *req.Phone)
+		n++
+	}
+	if req.CVUrl != nil {
+		fields = append(fields, fmt.Sprintf("cv_url = $%d", n))
+		args = append(args, *req.CVUrl)
+		n++
+	}
+	if req.CoverLetter != nil {
+		fields = append(fields, fmt.Sprintf("cover_letter = $%d", n))
+		args = append(args, *req.CoverLetter)
+		n++
+	}
+
+	if len(fields) == 0 {
+		return r.FindApplicationByID(ctx, id)
+	}
+
+	fields = append(fields, "updated_at = NOW()")
+	args = append(args, id)
+	query := fmt.Sprintf(
+		`UPDATE applications SET %s WHERE id = $%d
+		 RETURNING id, vacancy_id, first_name, last_name, email, phone, cv_url, cover_letter,
+		           status, notes, applied_at, updated_at`,
+		strings.Join(fields, ", "), n,
+	)
+
+	var app models.Application
+	err := r.db.QueryRow(ctx, query, args...).Scan(
+		&app.ID, &app.VacancyID, &app.FirstName, &app.LastName, &app.Email,
+		&app.Phone, &app.CVUrl, &app.CoverLetter, &app.Status, &app.Notes,
+		&app.AppliedAt, &app.UpdatedAt,
+	)
+	return &app, err
+}
+
 func (r *Repository) DeleteApplication(ctx context.Context, id string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM applications WHERE id = $1`, id)
 	return err

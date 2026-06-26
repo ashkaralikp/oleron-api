@@ -115,6 +115,7 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 				r.Get("/vacancies/{id}/applications", recruitmentHandler.GetApplicationsByVacancy)
 				r.Get("/applications/{id}", recruitmentHandler.GetApplicationByID)
 				r.Patch("/applications/{id}/status", recruitmentHandler.UpdateApplicationStatus)
+				r.Put("/applications/{id}", recruitmentHandler.UpdateApplication)
 				r.Delete("/applications/{id}", recruitmentHandler.DeleteApplication)
 				r.Post("/applications/{id}/interviews", recruitmentHandler.CreateInterview)
 				r.Post("/applications/{id}/hire", recruitmentHandler.Hire)

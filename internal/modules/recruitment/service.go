@@ -184,6 +184,13 @@ func (s *Service) UpdateApplicationStatus(ctx context.Context, id string, branch
 	return s.repo.UpdateApplicationStatus(ctx, id, req.Status, req.Notes)
 }
 
+func (s *Service) UpdateApplication(ctx context.Context, id string, branchIDs []string, userID string, req UpdateApplicationRequest) (*models.Application, error) {
+	if err := s.guardApplication(ctx, id, branchIDs, userID); err != nil {
+		return nil, err
+	}
+	return s.repo.UpdateApplication(ctx, id, req)
+}
+
 func (s *Service) DeleteApplication(ctx context.Context, id string, branchIDs []string, userID string) error {
 	if err := s.guardApplication(ctx, id, branchIDs, userID); err != nil {
 		return err

@@ -452,6 +452,40 @@ func (h *Handler) UpdateApplicationStatus(w http.ResponseWriter, r *http.Request
 	response.Success(w, app)
 }
 
+// PUT /recruitment/applications/{id}
+func (h *Handler) UpdateApplication(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	role, branchID, userID := ctxVars(r)
+
+	branchIDs, err := dbscope.GetEffectiveBranchIDs(r.Context(), h.db, role, userID, branchID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "failed to resolve branch access")
+		return
+	}
+
+	var req UpdateApplicationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := validator.Validate(req); err != nil {
+		response.Error(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	app, err := h.service.UpdateApplication(r.Context(), id, branchIDs, userID, req)
+	if err != nil {
+		switch err.Error() {
+		case "forbidden":
+			response.Error(w, http.StatusForbidden, "insufficient permissions")
+		default:
+			response.Error(w, http.StatusNotFound, "application not found")
+		}
+		return
+	}
+	response.Success(w, app)
+}
+
 // DELETE /recruitment/applications/{id}
 func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
