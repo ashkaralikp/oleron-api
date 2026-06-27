@@ -63,11 +63,11 @@ func Setup(cfg *config.Config, db *pgxpool.Pool) http.Handler {
 			r.Use(middleware.APIKey(cfg))
 			r.Post("/auth/login", auth.NewHandler(db, cfg.JWTSecret).Login)
 			r.Post("/auth/refresh", auth.NewHandler(db, cfg.JWTSecret).Refresh)
-			// Public recruitment: no JWT required
+			// Public recruitment: no JWT required — rate limited per IP
 			recruitmentHandlerPublic := recruitment.NewHandler(db, cfg.UploadDir, cfg.BaseURL)
-			r.Post("/recruitment/upload/cv", recruitmentHandlerPublic.UploadCV)
-			r.Get("/recruitment/vacancies/public", recruitmentHandlerPublic.GetPublicVacancies)
-			r.Post("/recruitment/vacancies/{id}/apply", recruitmentHandlerPublic.Apply)
+			r.With(middleware.RateLimit(5, time.Minute)).Post("/recruitment/upload/cv", recruitmentHandlerPublic.UploadCV)
+			r.With(middleware.RateLimit(30, time.Minute)).Get("/recruitment/vacancies/public", recruitmentHandlerPublic.GetPublicVacancies)
+			r.With(middleware.RateLimit(5, time.Minute)).Post("/recruitment/vacancies/{id}/apply", recruitmentHandlerPublic.Apply)
 		})
 
 		// Protected routes (JWT required)
